@@ -448,8 +448,9 @@ function updateFromScroll() {
   if (isPortrait) {
     targetState.camPos.set(0, 0, 7);    // much closer than desktop's z=12
     targetState.camLook.set(0, 0, 0);
-    targetState.coreRot.set(0, scrollProgress * Math.PI * 2, 0); // slow spin
-    targetState.coreScale = 1.4;        // beef it up
+    // Scroll nudges rotation; the animate() loop adds continuous idle spin.
+    targetState.coreRot.set(0.15, scrollProgress * Math.PI * 2, 0);
+    targetState.coreScale = 1.4;
     targetState.logoPos.set(0, 0, 0);
     return;
   }
@@ -515,9 +516,13 @@ function animate() {
   camera.lookAt(targetState.camLook);
 
   // Core: lerp rotation + scale, plus ambient spin
+  const portraitNow = window.innerWidth / window.innerHeight < 1;
+  const ambientSpin = portraitNow ? 0.006 : 0.002;   // more visible on mobile
   coreGroup.rotation.x += (targetState.coreRot.x - coreGroup.rotation.x) * 0.04;
-  coreGroup.rotation.y += (targetState.coreRot.y - coreGroup.rotation.y) * 0.04 + 0.002;
+  coreGroup.rotation.y += (targetState.coreRot.y - coreGroup.rotation.y) * 0.04 + ambientSpin;
   coreGroup.rotation.z += (targetState.coreRot.z - coreGroup.rotation.z) * 0.04;
+  const bob = portraitNow ? Math.sin(t * 0.9) * 0.08 : 0;
+  coreGroup.position.y += ((bob) - coreGroup.position.y) * 0.08;
   const s = targetState.coreScale;
   coreGroup.scale.x += (s - coreGroup.scale.x) * 0.06;
   coreGroup.scale.y = coreGroup.scale.z = coreGroup.scale.x;
