@@ -4,10 +4,9 @@ An immersive 3D landing experience for a modern creative marketing agency.
 
 ## Files
 
-- **`immersive.html`** — the main 3D immersive experience (WebGL + Three.js)
-- **`immersive.css`** / **`immersive.js`** — styles and scene logic for the immersive site
-- **`index.html`** — the flat/classic landing page version
-- **`styles.css`** / **`script.js`** — styles and scripts for the flat version
+- **`index.html`** — the main 3D immersive experience (WebGL + Three.js)
+- **`styles.css`** — styles for the site
+- **`script.js`** — WebGL scene logic and interactions
 
 ## Features
 
@@ -22,4 +21,4 @@ Vanilla HTML / CSS / JS · [Three.js](https://threejs.org) via CDN import map.
 
 ## Local preview
 
-Just open `immersive.html` in a modern browser.
+Just open `index.html` in a modern browser.
