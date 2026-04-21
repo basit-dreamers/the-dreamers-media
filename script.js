@@ -807,27 +807,9 @@ document.querySelectorAll('.scene').forEach(s => sceneIo.observe(s));
 
   let target = 0;
   let current = 0;
-  const lerpFactor = 0.11;  // slightly firmer so it settles instead of drifting
-  const wheelGain = 0.9;    // tame wheel deltas (Windows wheels dump ~100/tick)
-  const snapDelay = 180;    // ms of idle before snapping to nearest panel
-  const snapTolerance = 0.06; // fraction of vw — if closer than this to a panel, snap
+  const lerpFactor = 0.11;
 
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  let snapTimer = null;
-  function scheduleSnap() {
-    clearTimeout(snapTimer);
-    snapTimer = setTimeout(() => {
-      const w = vw();
-      const idx = Math.round(target / w);
-      const snapped = Math.max(0, Math.min(count - 1, idx)) * w;
-      if (Math.abs(snapped - target) > w * snapTolerance * 0.2) {
-        target = snapped;
-      } else {
-        target = snapped; // always crisp alignment on idle
-      }
-    }, snapDelay);
-  }
 
   // Expose state globally
   window.__dreamScroll = {
@@ -839,64 +821,92 @@ document.querySelectorAll('.scene').forEach(s => sceneIo.observe(s));
       return Math.round(current / vw());
     },
     scrollTo(i) {
-      clearTimeout(snapTimer);
       target = Math.max(0, Math.min(maxScroll(), i * vw()));
     },
   };
 
-  // ===== Input: wheel (vertical or horizontal both translate to horizontal)
+  function goTo(i) {
+    const idx = Math.max(0, Math.min(count - 1, i));
+    target = idx * vw();
+  }
+  function currentIndex() {
+    return Math.round(current / vw());
+  }
+
+  // ===== Input: wheel — discrete panel step with cooldown + accumulator
+  // This gives a predictable "one wheel gesture = one panel" feel instead
+  // of requiring many ticks of accumulated delta to cross the viewport.
+  let wheelAcc = 0;
+  let wheelCooldown = false;
+  const WHEEL_THRESHOLD = 40;   // px of accumulated delta to trigger a step
+  const WHEEL_COOLDOWN = 520;   // ms before another wheel step can fire
+  let wheelResetTimer = null;
+
   window.addEventListener('wheel', (e) => {
     e.preventDefault();
-    // Whichever delta is larger in magnitude drives the motion
+    if (wheelCooldown) return;
+
     const raw = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
-    // Clamp per-event delta so a single furious flick doesn't teleport past a panel
-    const clamped = Math.max(-220, Math.min(220, raw));
-    target = Math.max(0, Math.min(maxScroll(), target + clamped * wheelGain));
-    scheduleSnap();
+    wheelAcc += raw;
+
+    // Reset the accumulator if the user pauses (prevents old gestures lingering)
+    clearTimeout(wheelResetTimer);
+    wheelResetTimer = setTimeout(() => { wheelAcc = 0; }, 180);
+
+    if (Math.abs(wheelAcc) >= WHEEL_THRESHOLD) {
+      const dir = wheelAcc > 0 ? 1 : -1;
+      goTo(currentIndex() + dir);
+      wheelAcc = 0;
+      wheelCooldown = true;
+      setTimeout(() => { wheelCooldown = false; }, WHEEL_COOLDOWN);
+    }
   }, { passive: false });
 
   // ===== Keyboard
   window.addEventListener('keydown', (e) => {
     if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
-    const w = vw();
     if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
       e.preventDefault();
-      const next = Math.round(target / w) + 1;
-      target = Math.min(maxScroll(), next * w);
+      goTo(currentIndex() + 1);
     } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
       e.preventDefault();
-      const prev = Math.round(target / w) - 1;
-      target = Math.max(0, prev * w);
-    } else if (e.key === 'Home') { target = 0; }
-    else if (e.key === 'End')  { target = maxScroll(); }
+      goTo(currentIndex() - 1);
+    } else if (e.key === 'Home') { goTo(0); }
+    else if (e.key === 'End')  { goTo(count - 1); }
   });
 
-  // ===== Touch (vertical or horizontal swipe = horizontal scroll)
-  let touchX = 0, touchY = 0, touching = false;
+  // ===== Touch — swipe = one panel step
+  let touchX = 0, touchY = 0, touchStartX = 0, touchStartY = 0, touching = false;
+  const SWIPE_THRESHOLD = 60;
   window.addEventListener('touchstart', (e) => {
     const t = e.touches[0];
-    touchX = t.clientX; touchY = t.clientY; touching = true;
-    clearTimeout(snapTimer);
+    touchX = touchStartX = t.clientX;
+    touchY = touchStartY = t.clientY;
+    touching = true;
   }, { passive: true });
   window.addEventListener('touchmove', (e) => {
     if (!touching) return;
     const t = e.touches[0];
-    const dx = touchX - t.clientX;
-    const dy = touchY - t.clientY;
-    const delta = Math.abs(dy) > Math.abs(dx) ? dy : dx;
-    target = Math.max(0, Math.min(maxScroll(), target + delta * 1.4));
-    touchX = t.clientX; touchY = t.clientY;
+    touchX = t.clientX;
+    touchY = t.clientY;
     e.preventDefault();
   }, { passive: false });
-  window.addEventListener('touchend', () => { touching = false; scheduleSnap(); });
+  window.addEventListener('touchend', () => {
+    if (!touching) return;
+    touching = false;
+    const dx = touchStartX - touchX;
+    const dy = touchStartY - touchY;
+    const delta = Math.abs(dy) > Math.abs(dx) ? dy : dx;
+    if (Math.abs(delta) > SWIPE_THRESHOLD) {
+      goTo(currentIndex() + (delta > 0 ? 1 : -1));
+    }
+  });
 
   // ===== Nav clicks (including panel dots)
   document.querySelectorAll('[data-scroll-to]').forEach((a) => {
     a.addEventListener('click', (e) => {
       e.preventDefault();
-      const i = parseInt(a.dataset.scrollTo, 10);
-      clearTimeout(snapTimer);
-      target = Math.max(0, Math.min(maxScroll(), i * vw()));
+      goTo(parseInt(a.dataset.scrollTo, 10));
     });
   });
   // Also hijack #hash links that don't already have data-scroll-to
@@ -909,13 +919,12 @@ document.querySelectorAll('.scene').forEach(s => sceneIo.observe(s));
     a.addEventListener('click', (e) => {
       e.preventDefault();
       const idx = scenes.indexOf(target$.closest('.scene') || target$);
-      if (idx >= 0) { clearTimeout(snapTimer); target = idx * vw(); }
+      if (idx >= 0) goTo(idx);
     });
   });
 
   // ===== Resize
   window.addEventListener('resize', () => {
-    // Keep aligned to current panel index when the viewport resizes
     const idx = Math.round(current / vw());
     target = idx * vw();
     current = target;
