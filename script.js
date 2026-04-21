@@ -421,6 +421,17 @@ const sceneStates = [
   { camPos: [0, 0, 7], camLook: [0, 0, 0], coreRot: [0, 5.8, 0], coreScale: 1.3, logoPos: [0, 0, 1] },
 ];
 
+// Mobile / portrait variant — closer camera, smaller lateral travel so the
+// king stays framed, but every panel still has a distinct angle & rotation.
+const sceneStatesMobile = [
+  { camPos: [0, 0, 7],      camLook: [0, 0, 0], coreRot: [0,    0,    0   ], coreScale: 1.4, logoPos: [0, 0, 0] },
+  { camPos: [1.2, 0.4, 8],  camLook: [0, 0, 0], coreRot: [0.25, 1.6,  0   ], coreScale: 1.3, logoPos: [0, 0.3, -0.5] },
+  { camPos: [-2, 0, 6.5],   camLook: [0, 0, 0], coreRot: [0,    3.0,  0.25], coreScale: 1.5, logoPos: [0.5, 0, -0.5] },
+  { camPos: [0, 2.5, 7.5],  camLook: [0, 0, 0], coreRot: [0.7,  4.5,  0   ], coreScale: 1.35,logoPos: [0, -0.2, -0.5] },
+  { camPos: [1.5, -1, 7],   camLook: [0, 0, 0], coreRot: [-0.3, 6.0,  0.4 ], coreScale: 1.4, logoPos: [-0.3, -0.2, 0] },
+  { camPos: [0, 0, 5.5],    camLook: [0, 0, 0], coreRot: [0,    7.8,  0   ], coreScale: 1.7, logoPos: [0, 0, 0.5] },
+];
+
 let scrollProgress = 0; // 0..1 across page
 let currentState = { ...sceneStates[0] };
 const targetState = {
@@ -440,18 +451,26 @@ function updateFromScroll() {
   scrollProgress = p;
   document.getElementById('scrollProgress').style.width = (p * 100) + '%';
 
-  // On mobile/portrait, freeze the camera at a CLOSE, centered position so
-  // the king fills the frame and acts as a constant immersive backdrop behind
-  // every panel (otherwise the camera retreats to z=12+ and the king becomes
-  // a speck behind the content cards — reading as a "black background").
+  // On mobile/portrait, use the mobile keyframe table so each panel has a
+  // distinct camera angle & king rotation while staying framed in portrait.
   const isPortrait = window.innerWidth / window.innerHeight < 1;
   if (isPortrait) {
-    targetState.camPos.set(0, 0, 7);    // much closer than desktop's z=12
-    targetState.camLook.set(0, 0, 0);
-    // Scroll nudges rotation; the animate() loop adds continuous idle spin.
-    targetState.coreRot.set(0.15, scrollProgress * Math.PI * 2, 0);
-    targetState.coreScale = 1.4;
-    targetState.logoPos.set(0, 0, 0);
+    const states = sceneStatesMobile;
+    const segment = scrollProgress * (states.length - 1);
+    const idx = Math.floor(segment);
+    const tt = segment - idx;
+    const a = states[idx];
+    const b = states[Math.min(idx + 1, states.length - 1)];
+    const ease = tt * tt * (3 - 2 * tt);
+    targetState.camPos.fromArray(lerpArr(a.camPos, b.camPos, ease));
+    targetState.camLook.fromArray(lerpArr(a.camLook, b.camLook, ease));
+    targetState.coreRot.set(
+      lerp(a.coreRot[0], b.coreRot[0], ease),
+      lerp(a.coreRot[1], b.coreRot[1], ease),
+      lerp(a.coreRot[2], b.coreRot[2], ease),
+    );
+    targetState.coreScale = lerp(a.coreScale, b.coreScale, ease);
+    targetState.logoPos.fromArray(lerpArr(a.logoPos, b.logoPos, ease));
     return;
   }
 
