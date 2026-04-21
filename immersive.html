@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Dreamers Media — Immersive 3D Experience</title>
+<meta name="description" content="Step inside the dream. The Dreamers Media is a 3D-immersive creative agency crafting brands, campaigns, and digital worlds." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="immersive.css" />
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+
+<!-- Loader -->
+<div id="loader" class="loader">
+  <div class="loader-inner">
+    <div class="loader-orb"></div>
+    <p class="loader-text">Entering the dream<span>.</span><span>.</span><span>.</span></p>
+  </div>
+</div>
+
+<!-- WebGL Canvas -->
+<canvas id="webgl"></canvas>
+
+<!-- Custom Cursor -->
+<div class="cursor" id="cursor"></div>
+<div class="cursor-follower" id="cursorFollower"></div>
+
+<!-- Scroll Progress -->
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<!-- Navigation -->
+<header class="nav">
+  <div class="nav-inner">
+    <a href="#" class="logo" data-hover>
+      <span class="logo-mark">◐</span>
+      <span>The Dreamers <em>Media</em></span>
+    </a>
+    <nav class="nav-links">
+      <a href="#services" data-hover>Services</a>
+      <a href="#work" data-hover>Work</a>
+      <a href="#process" data-hover>Process</a>
+      <a href="#contact" class="btn-ghost" data-hover>Let's Talk</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ===== SCENE 1: HERO ===== -->
+<section class="scene scene-hero" data-scene="0">
+  <div class="scene-content">
+    <div class="hero-badge" data-hover>
+      <span class="pulse"></span> A 3D creative studio · est. 2019
+    </div>
+    <h1 class="hero-title">
+      <span class="line"><em>Dream</em> it.</span>
+      <span class="line">Build it in <span class="gradient-text">3D</span>.</span>
+      <span class="line">Launch it to the <em>world</em>.</span>
+    </h1>
+    <p class="hero-sub">
+      We're The Dreamers Media — an immersive marketing agency crafting brands,
+      campaigns, and interactive worlds you can step inside.
+    </p>
+    <div class="hero-cta">
+      <a href="#contact" class="btn btn-primary" data-hover>
+        Start Your Project
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <a href="#work" class="btn btn-secondary" data-hover>Explore the Universe</a>
+    </div>
+  </div>
+  <div class="scroll-hint">
+    <span>Scroll to enter</span>
+    <div class="scroll-arrow"></div>
+  </div>
+</section>
+
+<!-- ===== SCENE 2: MANIFESTO ===== -->
+<section class="scene scene-manifesto" data-scene="1">
+  <div class="scene-content narrow">
+    <span class="eyebrow">The Manifesto</span>
+    <h2 class="big-text">
+      Flat is <span class="strike">boring</span>.<br/>
+      We build <em>worlds</em> — not webpages.
+    </h2>
+    <p class="lead">
+      Every brand deserves more than a scroll. We design three-dimensional stories:
+      brands you can orbit, campaigns you can step inside, and experiences your
+      audience won't scroll past — because they'll be too busy exploring.
+    </p>
+  </div>
+</section>
+
+<!-- ===== SCENE 3: SERVICES ===== -->
+<section id="services" class="scene scene-services" data-scene="2">
+  <div class="scene-content">
+    <div class="section-head">
+      <span class="eyebrow">Capabilities</span>
+      <h2>A full creative stack, <em>rendered in real time</em>.</h2>
+    </div>
+
+    <div class="services-grid">
+      <article class="service-card" data-hover>
+        <div class="service-icon">◆</div>
+        <h3>Brand Universe</h3>
+        <p>Positioning, identity systems, and visual worlds that feel infinite.</p>
+        <span class="service-num">01</span>
+      </article>
+      <article class="service-card" data-hover>
+        <div class="service-icon">✦</div>
+        <h3>Immersive Web</h3>
+        <p>WebGL sites, 3D product viewers, and interactive experiences that convert.</p>
+        <span class="service-num">02</span>
+      </article>
+      <article class="service-card" data-hover>
+        <div class="service-icon">▲</div>
+        <h3>Performance Media</h3>
+        <p>Paid campaigns engineered for measurable outcomes across every channel.</p>
+        <span class="service-num">03</span>
+      </article>
+      <article class="service-card" data-hover>
+        <div class="service-icon">●</div>
+        <h3>Motion & 3D</h3>
+        <p>Cinematic motion design, CGI, and real-time 3D for film, web, and AR.</p>
+        <span class="service-num">04</span>
+      </article>
+      <article class="service-card" data-hover>
+        <div class="service-icon">❋</div>
+        <h3>Content Studio</h3>
+        <p>Always-on content engines that earn attention and drive community.</p>
+        <span class="service-num">05</span>
+      </article>
+      <article class="service-card" data-hover>
+        <div class="service-icon">◈</div>
+        <h3>Growth & SEO</h3>
+        <p>Organic strategies that compound — powered by data and premium craft.</p>
+        <span class="service-num">06</span>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SCENE 4: WORK ===== -->
+<section id="work" class="scene scene-work" data-scene="3">
+  <div class="scene-content">
+    <div class="section-head">
+      <span class="eyebrow">Selected Work</span>
+      <h2>Worlds we've <em>built</em>.</h2>
+    </div>
+    <div class="work-list">
+      <a href="#" class="work-row" data-hover>
+        <span class="work-index">01</span>
+        <h3>Nova Athletics</h3>
+        <span class="work-cat">Rebrand · 3D Product</span>
+        <span class="work-year">2026</span>
+      </a>
+      <a href="#" class="work-row" data-hover>
+        <span class="work-index">02</span>
+        <h3>Lumen Coffee Co.</h3>
+        <span class="work-cat">Campaign · Paid Social</span>
+        <span class="work-year">2025</span>
+      </a>
+      <a href="#" class="work-row" data-hover>
+        <span class="work-index">03</span>
+        <h3>Meridian Finance</h3>
+        <span class="work-cat">Immersive Web · SEO</span>
+        <span class="work-year">2025</span>
+      </a>
+      <a href="#" class="work-row" data-hover>
+        <span class="work-index">04</span>
+        <h3>Studio Oak Home</h3>
+        <span class="work-cat">Content · Community</span>
+        <span class="work-year">2024</span>
+      </a>
+      <a href="#" class="work-row" data-hover>
+        <span class="work-index">05</span>
+        <h3>Altitude Aerospace</h3>
+        <span class="work-cat">WebGL · Interactive</span>
+        <span class="work-year">2024</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SCENE 5: PROCESS ===== -->
+<section id="process" class="scene scene-process" data-scene="4">
+  <div class="scene-content">
+    <div class="section-head">
+      <span class="eyebrow">The Process</span>
+      <h2>From <em>spark</em> to <em>ship</em>.</h2>
+    </div>
+    <div class="process-track">
+      <div class="process-step" data-hover>
+        <div class="step-num">01</div>
+        <h3>Discover</h3>
+        <p>Brand deep-dive. Data + intuition.</p>
+      </div>
+      <div class="process-step" data-hover>
+        <div class="step-num">02</div>
+        <h3>Dream</h3>
+        <p>Strategy meets wild creative.</p>
+      </div>
+      <div class="process-step" data-hover>
+        <div class="step-num">03</div>
+        <h3>Design</h3>
+        <p>Every pixel, frame, and word.</p>
+      </div>
+      <div class="process-step" data-hover>
+        <div class="step-num">04</div>
+        <h3>Deliver</h3>
+        <p>Launch, measure, iterate — together.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SCENE 6: CTA / CONTACT ===== -->
+<section id="contact" class="scene scene-contact" data-scene="5">
+  <div class="scene-content narrow center">
+    <span class="eyebrow">Say Hello</span>
+    <h2 class="big-text">
+      Ready to build <em>your world?</em>
+    </h2>
+    <p class="lead">
+      Tell us about your brand and your ambitions. We'll bring the dimensions.
+    </p>
+    <form class="contact-form" onsubmit="event.preventDefault(); this.innerHTML='<p class=&quot;thanks&quot;>Thank you. A dreamer will be in touch ✦</p>';">
+      <div class="form-row">
+        <input type="text" placeholder="Your name" required data-hover />
+        <input type="email" placeholder="Work email" required data-hover />
+      </div>
+      <textarea placeholder="What world should we build together?" rows="4" data-hover></textarea>
+      <button type="submit" class="btn btn-primary" data-hover>
+        Begin the Journey
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </form>
+    <div class="contact-alt">
+      <a href="mailto:hello@thedreamersmedia.com" data-hover>hello@thedreamersmedia.com</a>
+      <span>·</span>
+      <a href="#" data-hover>Instagram</a>
+      <span>·</span>
+      <a href="#" data-hover>LinkedIn</a>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <span>© 2026 The Dreamers Media</span>
+    <span>Dream big · Ship bigger</span>
+    <span>Los Angeles · Remote Everywhere</span>
+  </div>
+</footer>
+
+<script type="module" src="immersive.js"></script>
+</body>
+</html>
