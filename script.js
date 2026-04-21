@@ -440,6 +440,20 @@ function updateFromScroll() {
   scrollProgress = p;
   document.getElementById('scrollProgress').style.width = (p * 100) + '%';
 
+  // On mobile/portrait, freeze the camera at the hero state so the king
+  // stays big & centered behind every panel (otherwise scenes 2-6 push it
+  // far off-screen and small, making the canvas look like a black bg).
+  const isPortrait = window.innerWidth / window.innerHeight < 1;
+  if (isPortrait) {
+    const a = sceneStates[0];
+    targetState.camPos.fromArray(a.camPos);
+    targetState.camLook.fromArray(a.camLook);
+    targetState.coreRot.set(0, scrollProgress * Math.PI * 2, 0); // gentle spin per-panel
+    targetState.coreScale = 1;
+    targetState.logoPos.fromArray(a.logoPos);
+    return;
+  }
+
   // Interpolate between scenes
   const segment = scrollProgress * (sceneStates.length - 1);
   const idx = Math.floor(segment);
@@ -606,12 +620,10 @@ animate();
    RESIZE
    ========================================================= */
 function applyCameraFov() {
-  // On narrow (portrait) aspect ratios, widen the FOV so the 3D subject
-  // doesn't get cropped when the camera moves off-center.
+  // On narrow (portrait) aspect ratios, moderately widen the FOV for framing.
   const aspect = window.innerWidth / window.innerHeight;
   if (aspect < 1) {
-    // Portrait: scale FOV inversely with aspect, clamped.
-    camera.fov = Math.min(95, 60 / aspect);
+    camera.fov = 75;  // gentle widen — not so much that the subject shrinks
   } else {
     camera.fov = 60;
   }
