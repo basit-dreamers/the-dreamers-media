@@ -789,58 +789,92 @@ document.querySelectorAll('.scene').forEach(s => sceneIo.observe(s));
 })();
 
 /* =========================================================
-   DREAM FLOAT — scenes drift in 3D relative to scroll + mouse
-   Each scene floats in from an offset and settles as it enters
-   the viewport center. A subtle veil brightens between scenes.
+   DREAM FLOAT — each scene is its own chamber in 3D space.
+   Scenes drift in from randomized directions / depths / spins
+   so scrolling feels like teleporting through dream rooms.
    ========================================================= */
 (function dreamFloat() {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
   const scenes = [...document.querySelectorAll('.scene')];
-  // Per-scene directional offsets so scenes float from alternating sides
-  const variants = [
-    { x:   0, y:   0, r:  0 },   // hero — still
-    { x:  -8, y:  40, r:  3 },   // manifesto — drifts in from lower-left
-    { x:   8, y:  40, r: -3 },   // services — from lower-right
-    { x:  -6, y:  60, r:  2 },   // work — lift from bottom-left
-    { x:   6, y:  40, r: -2 },   // process — lower-right
-    { x:   0, y:  60, r:  0 },   // contact — straight up from below
-  ];
 
+  // Seeded pseudo-random so the same scene always has the same entry vector
+  // (otherwise motion jitters between scroll positions).
+  function seeded(seed) {
+    let s = seed * 9301 + 49297;
+    return () => {
+      s = (s * 9301 + 49297) % 233280;
+      return s / 233280;
+    };
+  }
+
+  // Give each scene a chaotic 3D entry vector — direction, distance, rotation
+  const variants = scenes.map((_, i) => {
+    if (i === 0) return { tx: 0, ty: 0, tz: 0, rx: 0, ry: 0, rz: 0 };  // hero still
+    const rand = seeded(i + 7);
+    const angle = rand() * Math.PI * 2;
+    const distance = 120 + rand() * 220;     // how far away the chamber starts
+    const depth = -(200 + rand() * 500);     // how far back in Z
+    return {
+      tx: Math.cos(angle) * distance,
+      ty: Math.sin(angle) * distance + (rand() - 0.5) * 160,
+      tz: depth,
+      rx: (rand() - 0.5) * 24,               // up to ±12° on each axis
+      ry: (rand() - 0.5) * 28,
+      rz: (rand() - 0.5) * 10,
+    };
+  });
+
+  // Smoothed mouse parallax
   let mx = 0, my = 0, tmx = 0, tmy = 0;
   window.addEventListener('mousemove', (e) => {
     tmx = (e.clientX / window.innerWidth - 0.5);
     tmy = (e.clientY / window.innerHeight - 0.5);
   }, { passive: true });
 
+  // Smooth scroll-progress per scene so the entry eases rather than snaps
+  const sceneProgress = scenes.map(() => 0);
+
   function update() {
     mx += (tmx - mx) * 0.08;
     my += (tmy - my) * 0.08;
 
     const vh = window.innerHeight;
-    scenes.forEach((scene, idx) => {
+
+    scenes.forEach((scene, i) => {
       const r = scene.getBoundingClientRect();
-      // Distance of scene center from viewport center, normalized to [-1, 1]
       const center = r.top + r.height / 2;
-      const d = Math.max(-1, Math.min(1, (center - vh / 2) / (vh * 0.8)));
-      const v = variants[idx] || variants[variants.length - 1];
+      // d ranges -1 (scene below fold) → 0 (centered) → 1 (scrolled past)
+      const d = Math.max(-1.2, Math.min(1.2, (center - vh / 2) / (vh * 0.9)));
 
-      // Float in/out on approach (stronger when far, zero when centered)
-      const fade = Math.abs(d);
-      const px = v.x * d + mx * 14;                 // parallax adds mouse sway
-      const py = v.y * d + my * 10;
-      const pz = -fade * 120;                        // push back when far
-      const rx = (-d * 1.6) + (my * 1.8);
-      const ry = (v.r * d * 0.35) + (mx * 2.2);
+      // Progress of how "entered" the scene is: 0 when far, 1 when centered
+      const targetEnter = 1 - Math.min(1, Math.abs(d));
+      sceneProgress[i] += (targetEnter - sceneProgress[i]) * 0.12;
+      const enter = sceneProgress[i];
+      const exit = 1 - enter;  // 0 centered, 1 far
 
-      scene.style.setProperty('--px', `${px}px`);
-      scene.style.setProperty('--py', `${py}px`);
-      scene.style.setProperty('--pz', `${pz}px`);
-      scene.style.setProperty('--rx', `${rx}deg`);
-      scene.style.setProperty('--ry', `${ry}deg`);
+      const v = variants[i];
+      // When d > 0 (scrolled past), fly out the other way for asymmetric motion
+      const sign = d >= 0 ? 1 : -1;
 
-      // Veil intensifies near section transitions
-      scene.style.setProperty('--veil', (fade * 0.9).toFixed(3));
+      // Combine: chamber offset while exiting + mouse parallax while centered
+      const tx = v.tx * exit * sign + mx * 18 * enter;
+      const ty = v.ty * exit * sign + my * 14 * enter;
+      const tz = v.tz * exit;
+      const rx = v.rx * exit * sign + my * 3 * enter;
+      const ry = v.ry * exit * sign + mx * 3.5 * enter;
+      const rz = v.rz * exit * sign;
+
+      scene.style.setProperty('--px', `${tx.toFixed(1)}px`);
+      scene.style.setProperty('--py', `${ty.toFixed(1)}px`);
+      scene.style.setProperty('--pz', `${tz.toFixed(1)}px`);
+      scene.style.setProperty('--rx', `${rx.toFixed(2)}deg`);
+      scene.style.setProperty('--ry', `${ry.toFixed(2)}deg`);
+      scene.style.setProperty('--rz', `${rz.toFixed(2)}deg`);
+      // Stronger veil between chambers
+      scene.style.setProperty('--veil', (exit * 0.9).toFixed(3));
+      // Opacity fade for far-away chambers
+      scene.style.opacity = (0.25 + enter * 0.75).toFixed(3);
     });
 
     requestAnimationFrame(update);

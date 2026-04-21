@@ -273,14 +273,15 @@ a { color: inherit; text-decoration: none; }
   align-items: center;
   justify-content: center;
   padding: 60px 40px;
-  /* Dream-like float: driven by JS-set CSS vars per scene */
-  transform: perspective(1400px)
+  /* Dream-chamber float: each scene drifts in from its own random 3D offset. */
+  transform: perspective(1600px)
              translate3d(var(--px, 0px), var(--py, 0px), var(--pz, 0px))
              rotateX(var(--rx, 0deg))
-             rotateY(var(--ry, 0deg));
+             rotateY(var(--ry, 0deg))
+             rotateZ(var(--rz, 0deg));
   transform-style: preserve-3d;
-  transition: transform 0.9s var(--ease);
-  will-change: transform;
+  /* No CSS transition on transform — JS lerps smoothly each frame. */
+  will-change: transform, opacity;
 }
 .scene-hero { min-height: 100vh; padding-top: 120px; }
 .scene-contact { padding-bottom: 80px; }
