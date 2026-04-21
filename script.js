@@ -617,9 +617,8 @@ function animate() {
   fillLight.position.z = Math.sin(t * 0.2 + Math.PI) * 10;
 
   renderer.render(scene, camera);
-  requestAnimationFrame(animate);
 }
-animate();
+renderer.setAnimationLoop(animate);
 
 /* =========================================================
    RESIZE
