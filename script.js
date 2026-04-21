@@ -435,10 +435,10 @@ function lerp(a, b, t) { return a + (b - a) * t; }
 function lerpArr(a, b, t) { return a.map((v, i) => lerp(v, b[i], t)); }
 
 function updateFromScroll() {
-  const doc = document.documentElement;
-  const max = doc.scrollHeight - window.innerHeight;
-  scrollProgress = Math.max(0, Math.min(1, window.scrollY / max));
-  document.getElementById('scrollProgress').style.width = (scrollProgress * 100) + '%';
+  // scrollProgress is now driven by the horizontal scroll controller below.
+  const p = window.__dreamScroll ? window.__dreamScroll.progress : 0;
+  scrollProgress = p;
+  document.getElementById('scrollProgress').style.width = (p * 100) + '%';
 
   // Interpolate between scenes
   const segment = scrollProgress * (sceneStates.length - 1);
@@ -460,7 +460,8 @@ function updateFromScroll() {
   targetState.logoPos.fromArray(lerpArr(a.logoPos, b.logoPos, ease));
 }
 
-window.addEventListener('scroll', updateFromScroll, { passive: true });
+// We no longer listen for native scroll — the horizontal controller calls
+// updateFromScroll every frame via window.__dreamScroll onUpdate hook.
 updateFromScroll();
 
 /* =========================================================
@@ -789,38 +790,123 @@ document.querySelectorAll('.scene').forEach(s => sceneIo.observe(s));
 })();
 
 /* =========================================================
-   DREAM FLOAT — each scene is its own chamber in 3D space.
-   Scenes drift in from randomized directions / depths / spins
-   so scrolling feels like teleporting through dream rooms.
+   HORIZONTAL SCROLL CONTROLLER
+   Vertical wheel / trackpad / touch input becomes horizontal
+   translation of #scrollTrack. Progress is lerped for smooth motion
+   and exposed via window.__dreamScroll for other modules to read.
    ========================================================= */
-(function dreamFloat() {
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+(function horizontalScroll() {
+  const host = document.getElementById('scrollHost');
+  const track = document.getElementById('scrollTrack');
+  if (!host || !track) return;
 
-  const scenes = [...document.querySelectorAll('.scene')];
+  const scenes = [...track.querySelectorAll('.scene')];
+  const count = scenes.length;
+  const vw = () => window.innerWidth;
+  const maxScroll = () => (count - 1) * vw();
 
-  // Seeded pseudo-random so the same scene always has the same entry vector
-  // (otherwise motion jitters between scroll positions).
+  let target = 0;
+  let current = 0;
+  const lerpFactor = 0.085;  // buttery smoothness
+
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Expose state globally
+  window.__dreamScroll = {
+    get progress() {
+      const m = maxScroll();
+      return m > 0 ? Math.max(0, Math.min(1, current / m)) : 0;
+    },
+    scrollTo(i) {
+      target = Math.max(0, Math.min(maxScroll(), i * vw()));
+    },
+  };
+
+  // ===== Input: wheel (vertical or horizontal both translate to horizontal)
+  window.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    // Whichever delta is larger in magnitude drives the motion
+    const delta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+    target = Math.max(0, Math.min(maxScroll(), target + delta));
+  }, { passive: false });
+
+  // ===== Keyboard
+  window.addEventListener('keydown', (e) => {
+    if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+    const step = vw() * 0.9;
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+      e.preventDefault();
+      target = Math.min(maxScroll(), target + step);
+    } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+      e.preventDefault();
+      target = Math.max(0, target - step);
+    } else if (e.key === 'Home') { target = 0; }
+    else if (e.key === 'End')  { target = maxScroll(); }
+  });
+
+  // ===== Touch (vertical swipe = horizontal scroll)
+  let touchX = 0, touchY = 0, touching = false;
+  window.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    touchX = t.clientX; touchY = t.clientY; touching = true;
+  }, { passive: true });
+  window.addEventListener('touchmove', (e) => {
+    if (!touching) return;
+    const t = e.touches[0];
+    const dx = touchX - t.clientX;
+    const dy = touchY - t.clientY;
+    // Use dominant axis
+    const delta = Math.abs(dy) > Math.abs(dx) ? dy : dx;
+    target = Math.max(0, Math.min(maxScroll(), target + delta * 1.5));
+    touchX = t.clientX; touchY = t.clientY;
+    e.preventDefault();
+  }, { passive: false });
+  window.addEventListener('touchend', () => { touching = false; });
+
+  // ===== Nav clicks
+  document.querySelectorAll('[data-scroll-to]').forEach((a) => {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      const i = parseInt(a.dataset.scrollTo, 10);
+      target = Math.max(0, Math.min(maxScroll(), i * vw()));
+    });
+  });
+  // Also hijack #hash links
+  document.querySelectorAll('a[href^="#"]').forEach((a) => {
+    if (a.hasAttribute('data-scroll-to')) return;
+    const id = a.getAttribute('href').slice(1);
+    if (!id) return;
+    const target$ = document.getElementById(id);
+    if (!target$) return;
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      const idx = scenes.indexOf(target$.closest('.scene') || target$);
+      if (idx >= 0) target = idx * vw();
+    });
+  });
+
+  // ===== Resize
+  window.addEventListener('resize', () => {
+    target = Math.max(0, Math.min(maxScroll(), target));
+  });
+
+  // ===== Per-scene entry variants (randomized chambers)
   function seeded(seed) {
     let s = seed * 9301 + 49297;
-    return () => {
-      s = (s * 9301 + 49297) % 233280;
-      return s / 233280;
-    };
+    return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
   }
-
-  // Give each scene a chaotic 3D entry vector — direction, distance, rotation
   const variants = scenes.map((_, i) => {
-    if (i === 0) return { tx: 0, ty: 0, tz: 0, rx: 0, ry: 0, rz: 0 };  // hero still
+    if (i === 0) return { tx:0, ty:0, tz:0, rx:0, ry:0, rz:0 };
     const rand = seeded(i + 7);
     const angle = rand() * Math.PI * 2;
-    const distance = 120 + rand() * 220;     // how far away the chamber starts
-    const depth = -(200 + rand() * 500);     // how far back in Z
+    const distance = 140 + rand() * 220;
+    const depth = -(240 + rand() * 520);
     return {
       tx: Math.cos(angle) * distance,
       ty: Math.sin(angle) * distance + (rand() - 0.5) * 160,
       tz: depth,
-      rx: (rand() - 0.5) * 24,               // up to ±12° on each axis
-      ry: (rand() - 0.5) * 28,
+      rx: (rand() - 0.5) * 22,
+      ry: (rand() - 0.5) * 26,
       rz: (rand() - 0.5) * 10,
     };
   });
@@ -832,37 +918,34 @@ document.querySelectorAll('.scene').forEach(s => sceneIo.observe(s));
     tmy = (e.clientY / window.innerHeight - 0.5);
   }, { passive: true });
 
-  // Smooth scroll-progress per scene so the entry eases rather than snaps
-  const sceneProgress = scenes.map(() => 0);
+  function frame() {
+    // Lerp scroll
+    current += (target - current) * lerpFactor;
+    if (Math.abs(target - current) < 0.2) current = target;
 
-  function update() {
+    // Translate track
+    track.style.transform = `translate3d(${(-current).toFixed(1)}px, 0, 0)`;
+
+    // Mouse parallax smoothing
     mx += (tmx - mx) * 0.08;
     my += (tmy - my) * 0.08;
 
-    const vh = window.innerHeight;
-
+    // Per-scene: compute how centered each scene is (0..1) and apply float
+    const w = vw();
     scenes.forEach((scene, i) => {
-      const r = scene.getBoundingClientRect();
-      const center = r.top + r.height / 2;
-      // d ranges -1 (scene below fold) → 0 (centered) → 1 (scrolled past)
-      const d = Math.max(-1.2, Math.min(1.2, (center - vh / 2) / (vh * 0.9)));
-
-      // Progress of how "entered" the scene is: 0 when far, 1 when centered
-      const targetEnter = 1 - Math.min(1, Math.abs(d));
-      sceneProgress[i] += (targetEnter - sceneProgress[i]) * 0.12;
-      const enter = sceneProgress[i];
-      const exit = 1 - enter;  // 0 centered, 1 far
-
-      const v = variants[i];
-      // When d > 0 (scrolled past), fly out the other way for asymmetric motion
+      const sceneCenter = i * w + w / 2;
+      // Normalized distance from viewport center: -1 (before) → 0 (centered) → 1 (past)
+      const d = Math.max(-1.3, Math.min(1.3, (sceneCenter - current - w / 2) / (w * 0.9)));
+      const enter = 1 - Math.min(1, Math.abs(d));
+      const exit = 1 - enter;
       const sign = d >= 0 ? 1 : -1;
+      const v = variants[i];
 
-      // Combine: chamber offset while exiting + mouse parallax while centered
       const tx = v.tx * exit * sign + mx * 18 * enter;
       const ty = v.ty * exit * sign + my * 14 * enter;
       const tz = v.tz * exit;
-      const rx = v.rx * exit * sign + my * 3 * enter;
-      const ry = v.ry * exit * sign + mx * 3.5 * enter;
+      const rx = v.rx * exit * sign + my * 2.5 * enter;
+      const ry = v.ry * exit * sign + mx * 3 * enter;
       const rz = v.rz * exit * sign;
 
       scene.style.setProperty('--px', `${tx.toFixed(1)}px`);
@@ -871,35 +954,16 @@ document.querySelectorAll('.scene').forEach(s => sceneIo.observe(s));
       scene.style.setProperty('--rx', `${rx.toFixed(2)}deg`);
       scene.style.setProperty('--ry', `${ry.toFixed(2)}deg`);
       scene.style.setProperty('--rz', `${rz.toFixed(2)}deg`);
-      // Stronger veil between chambers
-      scene.style.setProperty('--veil', (exit * 0.9).toFixed(3));
-      // Opacity fade for far-away chambers
-      scene.style.opacity = (0.25 + enter * 0.75).toFixed(3);
+      scene.style.setProperty('--veil', (exit * 0.8).toFixed(3));
+      scene.style.opacity = (0.2 + enter * 0.8).toFixed(3);
     });
 
-    requestAnimationFrame(update);
-  }
-  update();
-})();
-(function smoothScroll() {
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  let target = window.scrollY;
-  let current = window.scrollY;
-  const lerpFactor = 0.12;
+    // Notify the 3D scene to re-read scrollProgress
+    if (typeof updateFromScroll === 'function') updateFromScroll();
 
-  window.addEventListener('scroll', () => {
-    target = window.scrollY;
-  }, { passive: true });
-
-  function loop() {
-    current += (target - current) * lerpFactor;
-    if (Math.abs(target - current) < 0.5) current = target;
-    // Apply subtle scroll-skew via CSS var for dramatic effect
-    const delta = target - current;
-    document.documentElement.style.setProperty('--scroll-skew', `${Math.max(-6, Math.min(6, delta * 0.05))}deg`);
-    requestAnimationFrame(loop);
+    requestAnimationFrame(frame);
   }
-  loop();
+  frame();
 })();
 
 /* =========================================================

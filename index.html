@@ -48,7 +48,7 @@
 <!-- Scroll Progress -->
 <div class="scroll-progress" id="scrollProgress"></div>
 
-<!-- Navigation -->
+<!-- Navigation (fixed, outside scroll track) -->
 <header class="nav">
   <div class="nav-inner">
     <a href="#" class="logo" data-hover>
@@ -70,13 +70,17 @@
       <span>The Dreamers <em>Media</em></span>
     </a>
     <nav class="nav-links">
-      <a href="#services" data-hover>Services</a>
-      <a href="#work" data-hover>Work</a>
-      <a href="#process" data-hover>Process</a>
-      <a href="#contact" class="btn-ghost" data-hover>Let's Talk</a>
+      <a href="#services" data-scroll-to="2" data-hover>Services</a>
+      <a href="#work" data-scroll-to="3" data-hover>Work</a>
+      <a href="#process" data-scroll-to="4" data-hover>Process</a>
+      <a href="#contact" data-scroll-to="5" class="btn-ghost" data-hover>Let's Talk</a>
     </nav>
   </div>
 </header>
+
+<!-- Horizontal scroll host -->
+<div id="scrollHost">
+  <div id="scrollTrack">
 
 <!-- ===== SCENE 1: HERO ===== -->
 <section class="scene scene-hero" data-scene="0">
@@ -102,28 +106,10 @@
     </div>
   </div>
   <div class="scroll-hint">
-    <span>Scroll to enter</span>
+    <span>Scroll sideways to enter</span>
     <div class="scroll-arrow"></div>
   </div>
 </section>
-
-<!-- ===== MARQUEE STRIP ===== -->
-<div class="marquee" aria-hidden="true">
-  <div class="marquee-track">
-    <span>Dream</span><span class="dot">✦</span>
-    <span>Build</span><span class="dot">✦</span>
-    <span>Launch</span><span class="dot">✦</span>
-    <span>Repeat</span><span class="dot">✦</span>
-    <span>Dream</span><span class="dot">✦</span>
-    <span>Build</span><span class="dot">✦</span>
-    <span>Launch</span><span class="dot">✦</span>
-    <span>Repeat</span><span class="dot">✦</span>
-    <span>Dream</span><span class="dot">✦</span>
-    <span>Build</span><span class="dot">✦</span>
-    <span>Launch</span><span class="dot">✦</span>
-    <span>Repeat</span><span class="dot">✦</span>
-  </div>
-</div>
 
 <!-- ===== SCENE 2: MANIFESTO ===== -->
 <section class="scene scene-manifesto" data-scene="1">
@@ -138,16 +124,12 @@
       brands you can orbit, campaigns you can step inside, and experiences your
       audience won't scroll past — because they'll be too busy exploring.
     </p>
-  </div>
-</section>
-
-<!-- ===== STATS STRIP ===== -->
-<section class="stats-strip" data-reveal>
-  <div class="stats-inner">
-    <div class="stat"><span class="stat-num" data-count="120">0</span><span class="stat-label">Brands launched</span></div>
-    <div class="stat"><span class="stat-num" data-count="87">0</span><span class="stat-suffix">M+</span><span class="stat-label">Impressions delivered</span></div>
-    <div class="stat"><span class="stat-num" data-count="42">0</span><span class="stat-label">Awards shelved</span></div>
-    <div class="stat"><span class="stat-num" data-count="7">0</span><span class="stat-label">Years dreaming</span></div>
+    <div class="stats-inner">
+      <div class="stat"><span class="stat-num" data-count="120">0</span><span class="stat-label">Brands launched</span></div>
+      <div class="stat"><span class="stat-num" data-count="87">0</span><span class="stat-suffix">M+</span><span class="stat-label">Impressions</span></div>
+      <div class="stat"><span class="stat-num" data-count="42">0</span><span class="stat-label">Awards shelved</span></div>
+      <div class="stat"><span class="stat-num" data-count="7">0</span><span class="stat-label">Years dreaming</span></div>
+    </div>
   </div>
 </section>
 
@@ -308,6 +290,9 @@
     </div>
   </div>
 </section>
+
+  </div><!-- /#scrollTrack -->
+</div><!-- /#scrollHost -->
 
 <footer class="footer">
   <div class="footer-inner">

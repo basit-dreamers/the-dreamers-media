@@ -45,15 +45,35 @@ html, body {
   font-weight: 400;
   font-variation-settings: "wght" 400;
   line-height: 1.6;
-  /* Enable contextual alternates, common ligatures, discretionary ligatures,
-     kerning, and proportional old-style figures for editorial feel. */
   font-feature-settings: "kern" 1, "liga" 1, "clig" 1, "calt" 1, "ss01" 1;
   font-kerning: normal;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
+  overflow: hidden;          /* no native scroll — JS-driven */
+  overscroll-behavior: none;
   cursor: none;
+  height: 100%;
+  touch-action: none;
+}
+
+/* Horizontal scroll rail ------------------------------------------------ */
+#scrollHost {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  z-index: 1;
+  perspective: 1800px;
+}
+#scrollTrack {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  height: 100vh;
+  will-change: transform;
+  transform-style: preserve-3d;
 }
 
 em {
@@ -264,26 +284,29 @@ a { color: inherit; text-decoration: none; }
 }
 .btn-secondary:hover { border-color: var(--text); background: rgba(255,255,255,0.04); }
 
-/* ===== Scene Layout ===== */
+/* ===== Scene Layout (horizontal panels) ===== */
 .scene {
   position: relative;
   z-index: 1;
-  min-height: 72vh;
+  flex: 0 0 100vw;
+  width: 100vw;
+  height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 60px 40px;
-  /* Dream-chamber float: each scene drifts in from its own random 3D offset. */
-  transform: perspective(1600px)
-             translate3d(var(--px, 0px), var(--py, 0px), var(--pz, 0px))
+  padding: 80px 8vw;
+  overflow-y: auto;
+  /* Dream-chamber float: each scene animates in as it scrolls through center. */
+  transform: translate3d(var(--px, 0px), var(--py, 0px), var(--pz, 0px))
              rotateX(var(--rx, 0deg))
              rotateY(var(--ry, 0deg))
              rotateZ(var(--rz, 0deg));
   transform-style: preserve-3d;
-  /* No CSS transition on transform — JS lerps smoothly each frame. */
   will-change: transform, opacity;
+  scrollbar-width: none;
 }
-.scene-hero { min-height: 100vh; padding-top: 120px; }
+.scene::-webkit-scrollbar { display: none; }
+.scene-hero { padding-top: 120px; }
 .scene-contact { padding-bottom: 80px; }
 
 .scene-content {
@@ -291,6 +314,7 @@ a { color: inherit; text-decoration: none; }
   z-index: 2;
   max-width: 1240px;
   width: 100%;
+  max-height: 100%;
 }
 .scene-content.narrow { max-width: 820px; }
 .scene-content.center { text-align: center; }
@@ -412,11 +436,12 @@ a { color: inherit; text-decoration: none; }
 
 .scroll-hint {
   position: absolute;
-  bottom: 40px;
-  left: 50%;
-  transform: translateX(-50%);
+  bottom: 50px;
+  right: 40px;
+  left: auto;
+  transform: none;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   gap: 14px;
   color: var(--text-dim);
@@ -426,14 +451,14 @@ a { color: inherit; text-decoration: none; }
   animation: fadeUp 2s ease 1.2s both;
 }
 .scroll-arrow {
-  width: 1px;
-  height: 40px;
-  background: linear-gradient(to bottom, transparent, var(--text-dim), transparent);
-  animation: scrollLine 2s ease-in-out infinite;
+  width: 40px;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--text-dim), transparent);
+  animation: scrollLineH 2s ease-in-out infinite;
 }
-@keyframes scrollLine {
-  0%, 100% { transform: scaleY(0.5); opacity: 0.3; transform-origin: top; }
-  50% { transform: scaleY(1); opacity: 1; }
+@keyframes scrollLineH {
+  0%, 100% { transform: scaleX(0.5); opacity: 0.3; transform-origin: left; }
+  50% { transform: scaleX(1); opacity: 1; }
 }
 @keyframes fadeUp {
   from { opacity: 0; transform: translate(-50%, 20px); }
@@ -751,14 +776,16 @@ a { color: inherit; text-decoration: none; }
 }
 .contact-alt a:hover { border-bottom-color: var(--accent-2); }
 
-/* ===== FOOTER ===== */
+/* ===== FOOTER (fixed strip over horizontal rail) ===== */
 .footer {
-  position: relative;
-  z-index: 2;
-  padding: 32px 40px;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 90;
+  padding: 14px 40px;
   border-top: 1px solid var(--border);
   background: rgba(5,5,10,0.6);
   backdrop-filter: blur(10px);
+  pointer-events: none;
 }
 .footer-inner {
   max-width: 1400px;
@@ -767,7 +794,7 @@ a { color: inherit; text-decoration: none; }
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 20px;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-dim);
 }
 
@@ -962,19 +989,13 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ===========================================================
-   Stats strip
+   Stats (embedded inside manifesto scene)
    =========================================================== */
-.stats-strip {
-  position: relative;
-  z-index: 2;
-  padding: 40px 40px 40px;
-}
 .stats-inner {
-  max-width: 1240px;
-  margin: 0 auto;
+  margin-top: 40px;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 24px;
+  gap: 16px;
 }
 .stat {
   text-align: center;
