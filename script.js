@@ -323,23 +323,48 @@ function animate() {
   coreGroup.scale.x += (s - coreGroup.scale.x) * 0.06;
   coreGroup.scale.y = coreGroup.scale.z = coreGroup.scale.x;
 
-  // ===== LOGO: draw-in intro + idle motion =====
-  logoParts.forEach((part) => {
-    const elapsed = t - part.introStart;
-    const p = Math.max(0, Math.min(1, elapsed / part.introDuration));
-    const drawT = 1 - Math.pow(1 - p, 3); // easeOutCubic
+  // ===== LOGO: 4 quarter-disc pieces assemble from exploded positions =====
+  logoParts.forEach((piece) => {
+    const d = piece.userData;
+    const elapsed = t - d.introStart;
+    const p = Math.max(0, Math.min(1, elapsed / d.introDuration));
+    const eased = 1 - Math.pow(1 - p, 3); // easeOutCubic
 
-    part.mainGeo.setDrawRange(0, Math.floor(part.totalMain * drawT));
-    part.glowGeo.setDrawRange(0, Math.floor(part.totalGlow * drawT));
-    part.glowMat.opacity = drawT * (0.25 + Math.sin(t * 2) * 0.12);
+    // Reveal once intro begins
+    if (elapsed >= 0) {
+      d.slab.visible = true;
+      d.halo.visible = true;
+    }
+
+    // Position: from anchor + offset -> anchor (+ idle drift after settle)
+    const settle = eased;
+    const driftT = t + d.driftSeed;
+    const fx = Math.sin(driftT * 0.6 + d.phase) * 0.06 * settle;
+    const fy = Math.cos(driftT * 0.5 + d.phase) * 0.06 * settle;
+    const fz = Math.sin(driftT * 0.4 + d.phase) * 0.08 * settle;
+
+    piece.position.x = d.anchor.x + d.offset.x * (1 - eased) + fx;
+    piece.position.y = d.anchor.y + d.offset.y * (1 - eased) + fy;
+    piece.position.z = d.anchor.z + d.offset.z * (1 - eased) + fz;
+
+    // Rotation: from random -> baseRotZ, plus subtle idle rocking
+    const idleRX = Math.sin(driftT * 0.4 + d.phase) * 0.04 * settle;
+    const idleRY = Math.cos(driftT * 0.35 + d.phase) * 0.04 * settle;
+    piece.rotation.x = d.rotOffset.x * (1 - eased) + idleRX;
+    piece.rotation.y = d.rotOffset.y * (1 - eased) + idleRY;
+    piece.rotation.z = d.baseRotZ + d.rotOffset.z * (1 - eased);
+
+    // Halo pulse
+    d.haloMat.opacity = eased * (0.22 + Math.sin(t * 2 + d.phase) * 0.12);
   });
 
-  // Material shimmer
-  logoMat.emissiveIntensity = 0.28 + Math.sin(t * 1.4) * 0.18;
+  // Shared material shimmer
+  logoMat.emissiveIntensity = 0.18 + Math.sin(t * 1.4) * 0.12;
 
-  // Whole logo breathes + subtle rocking
+  // Whole logo: gentle breathing + subtle 3D rocking (keeps our base tilt)
   logoGroup.scale.setScalar(1 + Math.sin(t * 0.8) * 0.015);
-  logoGroup.rotation.x = -0.12 + Math.sin(t * 0.5) * 0.06;
+  logoGroup.rotation.x = -0.1 + Math.sin(t * 0.5) * 0.06;
+  logoGroup.rotation.y = 0.25 + Math.sin(t * 0.4) * 0.12;
 
   // Scroll-driven position (independent of camera)
   logoGroup.position.x += (targetState.logoPos.x - logoGroup.position.x) * 0.05;
