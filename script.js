@@ -789,8 +789,64 @@ document.querySelectorAll('.scene').forEach(s => sceneIo.observe(s));
 })();
 
 /* =========================================================
-   SMOOTH SCROLL — lerped wheel/scroll for buttery feel
+   DREAM FLOAT — scenes drift in 3D relative to scroll + mouse
+   Each scene floats in from an offset and settles as it enters
+   the viewport center. A subtle veil brightens between scenes.
    ========================================================= */
+(function dreamFloat() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  const scenes = [...document.querySelectorAll('.scene')];
+  // Per-scene directional offsets so scenes float from alternating sides
+  const variants = [
+    { x:   0, y:   0, r:  0 },   // hero — still
+    { x:  -8, y:  40, r:  3 },   // manifesto — drifts in from lower-left
+    { x:   8, y:  40, r: -3 },   // services — from lower-right
+    { x:  -6, y:  60, r:  2 },   // work — lift from bottom-left
+    { x:   6, y:  40, r: -2 },   // process — lower-right
+    { x:   0, y:  60, r:  0 },   // contact — straight up from below
+  ];
+
+  let mx = 0, my = 0, tmx = 0, tmy = 0;
+  window.addEventListener('mousemove', (e) => {
+    tmx = (e.clientX / window.innerWidth - 0.5);
+    tmy = (e.clientY / window.innerHeight - 0.5);
+  }, { passive: true });
+
+  function update() {
+    mx += (tmx - mx) * 0.08;
+    my += (tmy - my) * 0.08;
+
+    const vh = window.innerHeight;
+    scenes.forEach((scene, idx) => {
+      const r = scene.getBoundingClientRect();
+      // Distance of scene center from viewport center, normalized to [-1, 1]
+      const center = r.top + r.height / 2;
+      const d = Math.max(-1, Math.min(1, (center - vh / 2) / (vh * 0.8)));
+      const v = variants[idx] || variants[variants.length - 1];
+
+      // Float in/out on approach (stronger when far, zero when centered)
+      const fade = Math.abs(d);
+      const px = v.x * d + mx * 14;                 // parallax adds mouse sway
+      const py = v.y * d + my * 10;
+      const pz = -fade * 120;                        // push back when far
+      const rx = (-d * 1.6) + (my * 1.8);
+      const ry = (v.r * d * 0.35) + (mx * 2.2);
+
+      scene.style.setProperty('--px', `${px}px`);
+      scene.style.setProperty('--py', `${py}px`);
+      scene.style.setProperty('--pz', `${pz}px`);
+      scene.style.setProperty('--rx', `${rx}deg`);
+      scene.style.setProperty('--ry', `${ry}deg`);
+
+      // Veil intensifies near section transitions
+      scene.style.setProperty('--veil', (fade * 0.9).toFixed(3));
+    });
+
+    requestAnimationFrame(update);
+  }
+  update();
+})();
 (function smoothScroll() {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   let target = window.scrollY;
