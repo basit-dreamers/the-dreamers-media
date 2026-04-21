@@ -66,59 +66,92 @@ const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({
 }));
 scene.add(stars);
 
-/* ===== Central Object: Icosahedron with wireframe ===== */
+/* ===== Central Object: The Dreamers Media Logo (4 quarter-arcs) ===== */
 const coreGroup = new THREE.Group();
 scene.add(coreGroup);
 
-const coreGeo = new THREE.IcosahedronGeometry(2.2, 1);
-const coreMat = new THREE.MeshPhysicalMaterial({
-  color: 0x0a0a14,
-  roughness: 0.15,
-  metalness: 0.9,
-  clearcoat: 1,
-  clearcoatRoughness: 0.2,
-  emissive: 0x220033,
-  emissiveIntensity: 0.4,
-});
-const coreMesh = new THREE.Mesh(coreGeo, coreMat);
-coreGroup.add(coreMesh);
+const logoGroup = new THREE.Group();
+coreGroup.add(logoGroup);
 
-const wireGeo = new THREE.IcosahedronGeometry(2.35, 1);
-const wireMat = new THREE.MeshBasicMaterial({
+const ARC_RADIUS = 1.9;        // radius of each quarter-circle
+const ARC_TUBE = 0.09;         // line thickness
+const ARC_TUBULAR_SEGMENTS = 128;
+
+// Metallic gradient material for the arcs
+const logoMat = new THREE.MeshPhysicalMaterial({
+  color: 0xf4f4f8,
+  roughness: 0.15,
+  metalness: 0.95,
+  clearcoat: 1,
+  clearcoatRoughness: 0.1,
+  emissive: 0xc44cf7,
+  emissiveIntensity: 0.25,
+});
+
+// Soft glow duplicate material (slightly larger tube, additive)
+const logoGlowMat = new THREE.MeshBasicMaterial({
   color: 0xff6b9d,
-  wireframe: true,
   transparent: true,
   opacity: 0.35,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
 });
-const wireMesh = new THREE.Mesh(wireGeo, wireMat);
-coreGroup.add(wireMesh);
 
-/* ===== Orbiting Torus Rings ===== */
-const torusGroup = new THREE.Group();
-coreGroup.add(torusGroup);
+/**
+ * Four quarter arcs. Each arc's circle-center sits at an outer corner
+ * of the 2x2 grid. The arcs hug the outer corners (convex out, concave in).
+ *
+ * Quadrants (center positions) + z-rotation so the TorusGeometry default
+ * (sweeps 0 -> PI/2) lines up with the right quadrant:
+ *   bottom-left  center (-R,-R)  rotate  0
+ *   bottom-right center ( R,-R)  rotate  PI/2
+ *   top-right    center ( R, R)  rotate  PI
+ *   top-left     center (-R, R)  rotate  3PI/2
+ */
+const R = ARC_RADIUS;
+const quadrants = [
+  { pos: [-R, -R, 0], rot: 0 },
+  { pos: [ R, -R, 0], rot: Math.PI / 2 },
+  { pos: [ R,  R, 0], rot: Math.PI },
+  { pos: [-R,  R, 0], rot: Math.PI * 1.5 },
+];
 
-const torus1 = new THREE.Mesh(
-  new THREE.TorusGeometry(3.4, 0.02, 16, 100),
-  new THREE.MeshBasicMaterial({ color: 0xc44cf7, transparent: true, opacity: 0.6 })
+const logoArcs = [];
+quadrants.forEach((q) => {
+  const geo = new THREE.TorusGeometry(
+    R, ARC_TUBE, 16, ARC_TUBULAR_SEGMENTS, Math.PI / 2
+  );
+  const mesh = new THREE.Mesh(geo, logoMat);
+  mesh.rotation.z = q.rot;
+  mesh.position.set(...q.pos);
+  logoGroup.add(mesh);
+  logoArcs.push(mesh);
+
+  // Glow halo (slightly larger tube)
+  const glowGeo = new THREE.TorusGeometry(
+    R, ARC_TUBE * 2.2, 12, ARC_TUBULAR_SEGMENTS, Math.PI / 2
+  );
+  const glow = new THREE.Mesh(glowGeo, logoGlowMat);
+  glow.rotation.z = q.rot;
+  glow.position.set(...q.pos);
+  logoGroup.add(glow);
+});
+
+// Tiny center marker (small cross/dot where the four quadrants meet)
+const centerDot = new THREE.Mesh(
+  new THREE.SphereGeometry(0.12, 24, 24),
+  new THREE.MeshPhysicalMaterial({
+    color: 0xff6b9d,
+    emissive: 0xff6b9d,
+    emissiveIntensity: 0.8,
+    roughness: 0.2,
+    metalness: 0.5,
+  })
 );
-torus1.rotation.x = Math.PI / 2.5;
-torusGroup.add(torus1);
+logoGroup.add(centerDot);
 
-const torus2 = new THREE.Mesh(
-  new THREE.TorusGeometry(3.9, 0.015, 16, 100),
-  new THREE.MeshBasicMaterial({ color: 0x4facfe, transparent: true, opacity: 0.5 })
-);
-torus2.rotation.x = Math.PI / 3;
-torus2.rotation.y = Math.PI / 4;
-torusGroup.add(torus2);
-
-const torus3 = new THREE.Mesh(
-  new THREE.TorusGeometry(4.5, 0.01, 16, 100),
-  new THREE.MeshBasicMaterial({ color: 0xfee140, transparent: true, opacity: 0.4 })
-);
-torus3.rotation.x = Math.PI / 6;
-torus3.rotation.z = Math.PI / 4;
-torusGroup.add(torus3);
+// Tilt the logo slightly forward so its depth reads better in 3D
+logoGroup.rotation.x = -0.15;
 
 /* ===== Floating Satellites ===== */
 const satellites = [];
@@ -250,14 +283,14 @@ function animate() {
   coreGroup.scale.x += (s - coreGroup.scale.x) * 0.06;
   coreGroup.scale.y = coreGroup.scale.z = coreGroup.scale.x;
 
-  // Wire pulse
-  wireMesh.scale.setScalar(1 + Math.sin(t * 1.5) * 0.03);
-  wireMat.opacity = 0.25 + Math.sin(t * 2) * 0.15;
+  // Wire pulse / logo breathe + emissive shimmer
+  logoGroup.scale.setScalar(1 + Math.sin(t * 1.2) * 0.02);
+  logoMat.emissiveIntensity = 0.2 + Math.sin(t * 1.5) * 0.15;
+  logoGlowMat.opacity = 0.3 + Math.sin(t * 2) * 0.15;
 
-  // Torus rings counter-rotate
-  torus1.rotation.z += 0.004;
-  torus2.rotation.y += 0.003;
-  torus3.rotation.x += 0.002;
+  // Logo: subtle continuous spin on Y (ambient rotation applied above via coreGroup)
+  // Add a very slight wobble on X for liveliness
+  logoGroup.rotation.x = -0.15 + Math.sin(t * 0.6) * 0.08;
 
   // Satellites orbit
   satellites.forEach((sat) => {

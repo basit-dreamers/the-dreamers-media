@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ff6b9d"/>
+      <stop offset="50%" stop-color="#c44cf7"/>
+      <stop offset="100%" stop-color="#4facfe"/>
+    </linearGradient>
+  </defs>
+  <!-- Four quarter-arcs hugging the outer corners, converging to center -->
+  <g stroke="url(#g)" stroke-width="4" fill="none" stroke-linecap="round">
+    <!-- bottom-left: center at (0,100), radius 50, arc from (50,100) to (0,50) -->
+    <path d="M 50 100 A 50 50 0 0 0 0 50" />
+    <!-- bottom-right: center at (100,100), radius 50, arc from (100,50) to (50,100) -->
+    <path d="M 100 50 A 50 50 0 0 0 50 100" />
+    <!-- top-right: center at (100,0), radius 50, arc from (50,0) to (100,50) -->
+    <path d="M 50 0 A 50 50 0 0 0 100 50" />
+    <!-- top-left: center at (0,0), radius 50, arc from (0,50) to (50,0) -->
+    <path d="M 0 50 A 50 50 0 0 0 50 0" />
+  </g>
+</svg>
