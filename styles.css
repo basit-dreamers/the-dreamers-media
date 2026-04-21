@@ -2,6 +2,25 @@
    The Dreamers Media — 3D Immersive Experience
    =========================================================== */
 
+/* ===== Variable font: Author (Klim-style grotesk) =====
+   Single variable file covers the full weight axis 100–900. */
+@font-face {
+  font-family: 'Author';
+  src: url('fonts/Author-Variable.ttf') format('truetype-variations'),
+       url('fonts/Author-Variable.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Author';
+  src: url('fonts/Author-VariableItalic.ttf') format('truetype-variations'),
+       url('fonts/Author-VariableItalic.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
 :root {
   --bg: #05050a;
   --bg-2: #0a0a14;
@@ -22,15 +41,23 @@
 html, body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-family: 'Author', system-ui, sans-serif;
+  font-weight: 400;
+  font-variation-settings: "wght" 400;
   line-height: 1.6;
+  /* Enable contextual alternates, common ligatures, discretionary ligatures,
+     kerning, and proportional old-style figures for editorial feel. */
+  font-feature-settings: "kern" 1, "liga" 1, "clig" 1, "calt" 1, "ss01" 1;
+  font-kerning: normal;
+  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
   cursor: none;
 }
 
 em {
-  font-family: 'Instrument Serif', serif;
+  font-family: 'Author', serif;
   font-style: italic;
   font-weight: 400;
 }
@@ -65,7 +92,7 @@ a { color: inherit; text-decoration: none; }
   50% { transform: scale(1.3); filter: blur(8px); }
 }
 .loader-text {
-  font-family: 'Instrument Serif', serif;
+  font-family: 'Author', serif;
   font-style: italic;
   font-size: 22px;
   color: var(--text-dim);
@@ -484,7 +511,7 @@ a { color: inherit; text-decoration: none; }
 .service-num {
   position: absolute;
   top: 28px; right: 28px;
-  font-family: 'Instrument Serif', serif;
+  font-family: 'Author', serif;
   font-style: italic;
   font-size: 20px;
   color: var(--text-dim);
@@ -528,7 +555,7 @@ a { color: inherit; text-decoration: none; }
   color: transparent;
 }
 .work-index {
-  font-family: 'Instrument Serif', serif;
+  font-family: 'Author', serif;
   font-style: italic;
   font-size: 22px;
   color: var(--text-dim);
@@ -582,7 +609,7 @@ a { color: inherit; text-decoration: none; }
   align-items: center;
   justify-content: center;
   margin: 0 auto 24px;
-  font-family: 'Instrument Serif', serif;
+  font-family: 'Author', serif;
   font-style: italic;
   font-size: 26px;
   position: relative;
@@ -654,7 +681,7 @@ a { color: inherit; text-decoration: none; }
   margin-top: 8px;
 }
 .thanks {
-  font-family: 'Instrument Serif', serif;
+  font-family: 'Author', serif;
   font-style: italic;
   font-size: 28px;
   text-align: center;
