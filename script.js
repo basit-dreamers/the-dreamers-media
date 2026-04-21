@@ -66,266 +66,204 @@ const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({
 }));
 scene.add(stars);
 
-/* ===== Central Object: Stylized Low-Poly 3D Pirate ===== */
+/* ===== Central Object: 3D Chess King Piece ===== */
 const coreGroup = new THREE.Group();
 scene.add(coreGroup);
 
 const logoGroup = new THREE.Group();
 coreGroup.add(logoGroup);
 
-// Legacy — kept so any downstream references don't break
+// Legacy so downstream refs don't break
 const logoMat = new THREE.MeshPhysicalMaterial({
-  color: 0xffffff, roughness: 0.3, metalness: 0.6,
-  emissive: 0xc44cf7, emissiveIntensity: 0.15,
-  transparent: true, opacity: 1,
+  color: 0xffffff, roughness: 0.25, metalness: 0.9,
+  emissive: 0xc44cf7, emissiveIntensity: 0.2,
 });
 const haloMatBase = new THREE.MeshBasicMaterial({
   color: 0xc44cf7, transparent: true, opacity: 0,
   blending: THREE.AdditiveBlending, depthWrite: false,
 });
-const logoParts = []; // no draw-in; pirate appears fully
+const logoParts = [];
 
 /* ---------- Materials ---------- */
-const skinMat = new THREE.MeshStandardMaterial({ color: 0xf2c48a, roughness: 0.6, metalness: 0.1 });
-const coatMat = new THREE.MeshStandardMaterial({ color: 0x6b2a2a, roughness: 0.7, metalness: 0.15, emissive: 0x2a0808, emissiveIntensity: 0.3 });
-const shirtMat = new THREE.MeshStandardMaterial({ color: 0xf5ecd6, roughness: 0.8, metalness: 0.05 });
-const pantsMat = new THREE.MeshStandardMaterial({ color: 0x1a1a22, roughness: 0.8, metalness: 0.1 });
-const beltMat = new THREE.MeshStandardMaterial({ color: 0xfee140, roughness: 0.35, metalness: 0.85, emissive: 0x6b4a00, emissiveIntensity: 0.3 });
-const hatMat = new THREE.MeshStandardMaterial({ color: 0x0a0a10, roughness: 0.9, metalness: 0.2 });
-const beardMat = new THREE.MeshStandardMaterial({ color: 0x2a1a0f, roughness: 0.95, metalness: 0 });
-const patchMat = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.9, metalness: 0 });
-const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3, emissive: 0xffffff, emissiveIntensity: 0.4 });
-const pupilMat = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.4 });
-const bladeMat = new THREE.MeshStandardMaterial({ color: 0xe8eaf0, roughness: 0.15, metalness: 1, emissive: 0x4facfe, emissiveIntensity: 0.2 });
-const hiltMat = new THREE.MeshStandardMaterial({ color: 0xfee140, roughness: 0.3, metalness: 1, emissive: 0x6b4a00, emissiveIntensity: 0.4 });
-const bootMat = new THREE.MeshStandardMaterial({ color: 0x2a1810, roughness: 0.85, metalness: 0.1 });
+const kingMat = new THREE.MeshPhysicalMaterial({
+  color: 0xf5f5fa,
+  roughness: 0.18,
+  metalness: 0.95,
+  clearcoat: 1,
+  clearcoatRoughness: 0.08,
+  emissive: 0xc44cf7,
+  emissiveIntensity: 0.22,
+});
 
-/* ---------- Pirate build ---------- */
-const pirate = new THREE.Group();
-logoGroup.add(pirate);
+const crossMat = new THREE.MeshPhysicalMaterial({
+  color: 0xfee140,
+  roughness: 0.2,
+  metalness: 1,
+  emissive: 0xfee140,
+  emissiveIntensity: 0.5,
+  clearcoat: 1,
+});
 
-// Torso (coat)
-const torso = new THREE.Mesh(
-  new THREE.CylinderGeometry(0.75, 0.95, 1.7, 10),
-  coatMat
+const baseAccentMat = new THREE.MeshPhysicalMaterial({
+  color: 0xff6b9d,
+  roughness: 0.3,
+  metalness: 0.8,
+  emissive: 0xff6b9d,
+  emissiveIntensity: 0.3,
+});
+
+/* ---------- King body — lathe from a 2D profile ---------- */
+/*
+  Profile (X = radius, Y = height). Traditional Staunton silhouette:
+  wide base, stepped foot ring, tapering column, collar, bishop-like
+  onion bulge, narrow neck, flared crown with battlements, topped by a cross.
+*/
+// Inner wrapper so we can offset the king's pivot without fighting
+// the scroll-driven logoGroup.position lerp.
+const kingWrapper = new THREE.Group();
+kingWrapper.position.y = -1.4;
+logoGroup.add(kingWrapper);
+const profile = [
+  [0.00, 0.00],
+  [1.10, 0.00],
+  [1.10, 0.08],
+  [1.00, 0.18],
+  [1.05, 0.22],
+  [1.05, 0.32],
+  [0.85, 0.40],
+  [0.75, 0.55],
+  [0.55, 0.75],
+  [0.45, 1.10],
+  [0.42, 1.55],
+  [0.55, 1.75],
+  [0.65, 1.85],
+  [0.50, 1.95],
+  [0.40, 2.05],   // neck
+  [0.42, 2.15],
+  [0.55, 2.25],   // base of crown
+  [0.80, 2.35],   // crown flare out
+  [0.88, 2.50],
+  [0.85, 2.65],
+  [0.75, 2.75],   // top rim of crown (battlement base)
+  [0.00, 2.75],
+];
+
+const profilePoints = profile.map(([x, y]) => new THREE.Vector2(x, y));
+const kingBodyGeo = new THREE.LatheGeometry(profilePoints, 96);
+const kingBody = new THREE.Mesh(kingBodyGeo, kingMat);
+kingWrapper.add(kingBody);
+
+/* ---------- Crown battlements — 8 little blocks around the top ---------- */
+const battlements = new THREE.Group();
+const battCount = 8;
+for (let i = 0; i < battCount; i++) {
+  const ang = (i / battCount) * Math.PI * 2;
+  const b = new THREE.Mesh(
+    new THREE.BoxGeometry(0.22, 0.18, 0.22),
+    kingMat
+  );
+  const r = 0.72;
+  b.position.set(Math.cos(ang) * r, 2.82, Math.sin(ang) * r);
+  b.rotation.y = -ang;
+  battlements.add(b);
+}
+kingWrapper.add(battlements);
+
+// Decorative pink ring at the base of the crown
+const crownRing = new THREE.Mesh(
+  new THREE.TorusGeometry(0.58, 0.045, 10, 64),
+  baseAccentMat
 );
-torso.position.y = 0.3;
-pirate.add(torso);
+crownRing.position.y = 2.28;
+crownRing.rotation.x = Math.PI / 2;
+kingWrapper.add(crownRing);
 
-// Shirt chest triangle (V-neck look) — a small lighter box poking out
-const shirt = new THREE.Mesh(
-  new THREE.ConeGeometry(0.4, 0.7, 3),
-  shirtMat
+// Decorative ring on the collar
+const collarRing = new THREE.Mesh(
+  new THREE.TorusGeometry(0.58, 0.04, 10, 64),
+  baseAccentMat
 );
-shirt.position.set(0, 0.75, 0.7);
-shirt.rotation.x = Math.PI;
-pirate.add(shirt);
+collarRing.position.y = 1.78;
+collarRing.rotation.x = Math.PI / 2;
+kingWrapper.add(collarRing);
 
-// Belt
-const belt = new THREE.Mesh(
-  new THREE.TorusGeometry(0.95, 0.08, 8, 24),
-  beltMat
+// Decorative ring on the base
+const baseRing = new THREE.Mesh(
+  new THREE.TorusGeometry(1.06, 0.04, 10, 64),
+  baseAccentMat
 );
-belt.position.y = -0.4;
-belt.rotation.x = Math.PI / 2;
-pirate.add(belt);
+baseRing.position.y = 0.22;
+baseRing.rotation.x = Math.PI / 2;
+kingWrapper.add(baseRing);
 
-// Belt buckle
-const buckle = new THREE.Mesh(
-  new THREE.BoxGeometry(0.28, 0.2, 0.12),
-  beltMat
+/* ---------- Golden cross on top ---------- */
+const crossGroup = new THREE.Group();
+const crossVertical = new THREE.Mesh(
+  new THREE.BoxGeometry(0.14, 0.75, 0.14),
+  crossMat
 );
-buckle.position.set(0, -0.4, 0.95);
-pirate.add(buckle);
+crossVertical.position.y = 0.38;
+crossGroup.add(crossVertical);
 
-// Pants / legs
-const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.25, 1.0, 8), pantsMat);
-legL.position.set(-0.35, -1.05, 0);
-pirate.add(legL);
-const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.25, 1.0, 8), pantsMat);
-legR.position.set(0.35, -1.05, 0);
-pirate.add(legR);
-
-// Boots
-const bootL = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.28, 0.6), bootMat);
-bootL.position.set(-0.35, -1.68, 0.1);
-pirate.add(bootL);
-const bootR = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.28, 0.6), bootMat);
-bootR.position.set(0.35, -1.68, 0.1);
-pirate.add(bootR);
-
-// Head
-const head = new THREE.Mesh(
-  new THREE.SphereGeometry(0.55, 20, 16),
-  skinMat
+const crossHorizontal = new THREE.Mesh(
+  new THREE.BoxGeometry(0.5, 0.14, 0.14),
+  crossMat
 );
-head.position.y = 1.55;
-pirate.add(head);
+crossHorizontal.position.y = 0.5;
+crossGroup.add(crossHorizontal);
 
-// Beard (cone under face)
-const beard = new THREE.Mesh(
-  new THREE.ConeGeometry(0.45, 0.65, 10),
-  beardMat
+// Tiny orb at intersection for flair
+const crossOrb = new THREE.Mesh(
+  new THREE.SphereGeometry(0.1, 16, 12),
+  crossMat
 );
-beard.position.set(0, 1.15, 0.25);
-beard.rotation.x = -0.15;
-pirate.add(beard);
+crossOrb.position.y = 0.5;
+crossGroup.add(crossOrb);
 
-// Mustache — two small boxes
-const mustL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 0.1), beardMat);
-mustL.position.set(-0.12, 1.4, 0.52);
-mustL.rotation.z = 0.35;
-pirate.add(mustL);
-const mustR = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 0.1), beardMat);
-mustR.position.set(0.12, 1.4, 0.52);
-mustR.rotation.z = -0.35;
-pirate.add(mustR);
+crossGroup.position.y = 2.95;
+kingWrapper.add(crossGroup);
 
-// Eye (left, visible)
-const eye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), eyeMat);
-eye.position.set(-0.2, 1.62, 0.48);
-pirate.add(eye);
-const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), pupilMat);
-pupil.position.set(-0.2, 1.62, 0.555);
-pirate.add(pupil);
+/* ---------- Soft glow halo behind the king ---------- */
+const kingHaloGeo = new THREE.SphereGeometry(2.6, 24, 16);
+const kingHaloMat = new THREE.MeshBasicMaterial({
+  color: 0xc44cf7,
+  transparent: true,
+  opacity: 0.08,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
+});
+const kingHalo = new THREE.Mesh(kingHaloGeo, kingHaloMat);
+kingHalo.position.y = 1.4;
+kingWrapper.add(kingHalo);
 
-// Eye patch (right) + strap
-const patch = new THREE.Mesh(new THREE.CircleGeometry(0.14, 16), patchMat);
-patch.position.set(0.2, 1.62, 0.51);
-pirate.add(patch);
-const strap = new THREE.Mesh(
-  new THREE.TorusGeometry(0.56, 0.02, 6, 32),
-  patchMat
-);
-strap.position.set(0, 1.62, 0);
-strap.rotation.y = -0.25;
-pirate.add(strap);
+/* ---------- Orbiting rings (royal court vibe) ---------- */
+const rings = [];
+const ringConfigs = [
+  { radius: 2.4, tube: 0.02, color: 0xff6b9d, tilt: [Math.PI / 2.4, 0, 0.1], speed: 0.15 },
+  { radius: 2.8, tube: 0.015, color: 0x4facfe, tilt: [Math.PI / 2, 0.3, 0.5], speed: -0.11 },
+  { radius: 3.2, tube: 0.012, color: 0xfee140, tilt: [Math.PI / 2.2, 0.6, 1.1], speed: 0.08 },
+];
+ringConfigs.forEach((cfg) => {
+  const rg = new THREE.TorusGeometry(cfg.radius, cfg.tube, 8, 160);
+  const rm = new THREE.MeshBasicMaterial({
+    color: cfg.color, transparent: true, opacity: 0.6,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const ring = new THREE.Mesh(rg, rm);
+  ring.rotation.set(...cfg.tilt);
+  ring.position.y = 1.4;
+  ring.userData = { baseRot: [...cfg.tilt], speed: cfg.speed };
+  kingWrapper.add(ring);
+  rings.push(ring);
+});
 
-// Tricorn hat — flat disc + top cone
-const hatBrim = new THREE.Mesh(
-  new THREE.CylinderGeometry(0.85, 0.85, 0.08, 3),
-  hatMat
-);
-hatBrim.position.y = 2.05;
-hatBrim.rotation.y = Math.PI / 2;
-pirate.add(hatBrim);
-
-const hatTop = new THREE.Mesh(
-  new THREE.CylinderGeometry(0.42, 0.52, 0.45, 12),
-  hatMat
-);
-hatTop.position.y = 2.3;
-pirate.add(hatTop);
-
-// Hat skull emblem (tiny white sphere)
-const emblem = new THREE.Mesh(
-  new THREE.SphereGeometry(0.07, 10, 8),
-  new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.5 })
-);
-emblem.position.set(0, 2.28, 0.53);
-pirate.add(emblem);
-
-// Arms — left arm holding sword out, right arm at side
-const armL = new THREE.Group();
-const armLUpper = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.16, 0.8, 8), coatMat);
-armLUpper.position.y = -0.4;
-armL.add(armLUpper);
-const armLHand = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8), skinMat);
-armLHand.position.y = -0.85;
-armL.add(armLHand);
-armL.position.set(-0.9, 0.9, 0.1);
-armL.rotation.z = -0.55;
-pirate.add(armL);
-
-const armR = new THREE.Group();
-const armRUpper = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.16, 0.8, 8), coatMat);
-armRUpper.position.y = -0.4;
-armR.add(armRUpper);
-const armRHand = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8), skinMat);
-armRHand.position.y = -0.85;
-armR.add(armRHand);
-armR.position.set(0.9, 0.9, 0.1);
-armR.rotation.z = 0.9;   // raised up holding sword
-armR.rotation.x = -0.4;
-pirate.add(armR);
-
-// Sword — held by right hand, pointing up-right
-const sword = new THREE.Group();
-const blade = new THREE.Mesh(new THREE.BoxGeometry(0.09, 1.7, 0.02), bladeMat);
-blade.position.y = 0.85;
-sword.add(blade);
-const guard = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.08, 0.1), hiltMat);
-guard.position.y = 0;
-sword.add(guard);
-const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.28, 8), bootMat);
-grip.position.y = -0.18;
-sword.add(grip);
-const pommel = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), hiltMat);
-pommel.position.y = -0.35;
-sword.add(pommel);
-
-// Position sword at right hand, angled outward
-sword.position.set(0.9, 0.9, 0.1);
-sword.position.x += Math.sin(0.9) * 0.85;
-sword.position.y += -Math.cos(0.9) * 0.85;
-sword.rotation.z = 0.9 - 0.3;
-sword.rotation.x = -0.4;
-pirate.add(sword);
-
-// Parrot on left shoulder
-const parrot = new THREE.Group();
-const parrotBody = new THREE.Mesh(
-  new THREE.SphereGeometry(0.2, 12, 10),
-  new THREE.MeshStandardMaterial({ color: 0xff6b9d, roughness: 0.5, emissive: 0xff6b9d, emissiveIntensity: 0.25 })
-);
-parrotBody.scale.set(1, 1.1, 1.3);
-parrot.add(parrotBody);
-const parrotHead = new THREE.Mesh(
-  new THREE.SphereGeometry(0.13, 12, 10),
-  new THREE.MeshStandardMaterial({ color: 0x4facfe, roughness: 0.5, emissive: 0x4facfe, emissiveIntensity: 0.25 })
-);
-parrotHead.position.set(0, 0.18, 0.2);
-parrot.add(parrotHead);
-const parrotBeak = new THREE.Mesh(
-  new THREE.ConeGeometry(0.05, 0.14, 6),
-  new THREE.MeshStandardMaterial({ color: 0xfee140, roughness: 0.3, emissive: 0xfee140, emissiveIntensity: 0.3 })
-);
-parrotBeak.position.set(0, 0.16, 0.33);
-parrotBeak.rotation.x = Math.PI / 2;
-parrot.add(parrotBeak);
-const parrotWing = new THREE.Mesh(
-  new THREE.ConeGeometry(0.14, 0.35, 3),
-  new THREE.MeshStandardMaterial({ color: 0xc44cf7, roughness: 0.5, emissive: 0xc44cf7, emissiveIntensity: 0.3 })
-);
-parrotWing.position.set(-0.18, 0.05, 0);
-parrotWing.rotation.z = 1.2;
-parrot.add(parrotWing);
-parrot.position.set(-0.65, 1.7, 0);
-parrot.userData = { flapPhase: 0 };
-pirate.add(parrot);
-
-// Hook hand — replace left hand with a hook (pirates gotta pirate)
-armLHand.visible = false;
-const hook = new THREE.Mesh(
-  new THREE.TorusGeometry(0.12, 0.035, 6, 20, Math.PI * 1.4),
-  new THREE.MeshStandardMaterial({ color: 0xdde4ed, roughness: 0.2, metalness: 1, emissive: 0x4facfe, emissiveIntensity: 0.2 })
-);
-hook.position.set(-0.9 + Math.sin(-0.55) * 0.9, 0.9 - Math.cos(-0.55) * 0.9, 0.1);
-hook.rotation.z = -0.55 + Math.PI / 2;
-pirate.add(hook);
-
-// Lift whole pirate so he sits centered in the frame
-pirate.position.y = 0.2;
-pirate.scale.setScalar(1.15);
-
-logoGroup.rotation.x = -0.05;
+logoGroup.rotation.x = 0;
 
 // Legacy compatibility (unused)
 const orbA = null;
 const orbB = null;
 
-// References for animation
-const pirateRefs = { pirate, armR, sword, parrot, parrotWing, head };
+const kingRefs = { crossGroup, crossOrb, kingHaloMat, kingBody, rings };
 
 /* ===== Floating Satellites ===== */
 const satellites = [];
@@ -459,8 +397,7 @@ function animate() {
   coreGroup.scale.x += (s - coreGroup.scale.x) * 0.06;
   coreGroup.scale.y = coreGroup.scale.z = coreGroup.scale.x;
 
-  // ===== PIRATE: idle animation =====
-  // (No draw-in needed — pirate appears immediately)
+  // ===== CHESS KING: idle animation =====
   logoParts.forEach((part) => {
     const elapsed = t - part.introStart;
     const p = Math.max(0, Math.min(1, elapsed / part.introDuration));
@@ -470,23 +407,27 @@ function animate() {
     part.glowMat.opacity = drawT * (0.22 + Math.sin(t * 2) * 0.1);
   });
 
-  // Pirate head: subtle look-around
-  pirateRefs.head.rotation.y = Math.sin(t * 0.6) * 0.25;
-  pirateRefs.head.rotation.x = Math.sin(t * 0.4) * 0.08;
+  // King body shimmer
+  kingMat.emissiveIntensity = 0.18 + Math.sin(t * 1.2) * 0.12;
 
-  // Sword: gentle swaying
-  pirateRefs.armR.rotation.z = 0.9 + Math.sin(t * 1.2) * 0.08;
-  pirateRefs.sword.rotation.z = (0.9 - 0.3) + Math.sin(t * 1.2) * 0.08;
+  // Cross glows and slowly spins independently
+  kingRefs.crossGroup.rotation.y = t * 0.4;
+  crossMat.emissiveIntensity = 0.45 + Math.sin(t * 1.8) * 0.25;
+  kingRefs.crossOrb.scale.setScalar(1 + Math.sin(t * 2.5) * 0.15);
 
-  // Parrot: wing flap + slight bob
-  pirateRefs.parrotWing.rotation.x = Math.sin(t * 8) * 0.5;
-  pirateRefs.parrot.position.y = 1.7 + Math.sin(t * 3) * 0.04;
+  // Halo pulse
+  kingRefs.kingHaloMat.opacity = 0.06 + Math.sin(t * 1.2) * 0.04;
 
-  // Whole pirate: gentle swaying (like standing on a ship deck)
+  // Orbiting rings
+  kingRefs.rings.forEach((ring) => {
+    const [rx, ry, rz] = ring.userData.baseRot;
+    ring.rotation.set(rx, ry + t * ring.userData.speed, rz + t * ring.userData.speed * 0.3);
+  });
+
+  // Whole king: slow majestic rotation + gentle breathing
   logoGroup.scale.setScalar(1 + Math.sin(t * 0.8) * 0.015);
-  logoGroup.rotation.x = -0.05 + Math.sin(t * 0.5) * 0.04;
-  logoGroup.rotation.y = Math.sin(t * 0.35) * 0.15;
-  logoGroup.position.y = Math.sin(t * 0.7) * 0.1;
+  logoGroup.rotation.y = t * 0.25;  // continuous slow spin
+  logoGroup.rotation.x = Math.sin(t * 0.4) * 0.04;
 
   // Scroll-driven position (independent of camera)
   logoGroup.position.x += (targetState.logoPos.x - logoGroup.position.x) * 0.05;
