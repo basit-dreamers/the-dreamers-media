@@ -66,30 +66,23 @@ const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({
 }));
 scene.add(stars);
 
-/* ===== Central Object: The Dreamers Media Logo (4 quarter-arcs) ===== */
+/* ===== Central Object: Iridescent Torus Knot Hero ===== */
 const coreGroup = new THREE.Group();
 scene.add(coreGroup);
 
 const logoGroup = new THREE.Group();
 coreGroup.add(logoGroup);
 
-/* ---------- Logo geometry: square frame + single quarter-arc inside ---------- */
-const SIZE = 3.4;              // side length of the square
-const FRAME_TUBE = 0.06;       // thin frame edges (match the thin stroke of the real logo)
-const ARC_TUBE = 0.06;         // arc thickness (same as frame — single-weight line art)
-const ARC_RADIUS = SIZE;       // arc spans full side so it touches the opposite corners
-const TUBULAR = 192;
-const RADIAL = 16;
-
-const HALF = SIZE / 2;
-
-// Shared white metallic material
+// Shared iridescent metallic material for the main knot
 const logoMat = new THREE.MeshPhysicalMaterial({
   color: 0xffffff,
-  roughness: 0.12,
-  metalness: 0.95,
+  roughness: 0.18,
+  metalness: 1.0,
   clearcoat: 1,
-  clearcoatRoughness: 0.08,
+  clearcoatRoughness: 0.05,
+  iridescence: 1,
+  iridescenceIOR: 1.8,
+  iridescenceThicknessRange: [100, 800],
   emissive: 0xc44cf7,
   emissiveIntensity: 0.25,
   transparent: true,
@@ -106,88 +99,90 @@ const haloMatBase = new THREE.MeshBasicMaterial({
 
 const logoParts = [];
 
-/* ---------- Square frame: 4 edges as thin cylinders ---------- */
-const edges = [
-  { from: new THREE.Vector3(-HALF, -HALF, 0), to: new THREE.Vector3( HALF, -HALF, 0) }, // bottom
-  { from: new THREE.Vector3( HALF, -HALF, 0), to: new THREE.Vector3( HALF,  HALF, 0) }, // right
-  { from: new THREE.Vector3( HALF,  HALF, 0), to: new THREE.Vector3(-HALF,  HALF, 0) }, // top
-  { from: new THREE.Vector3(-HALF,  HALF, 0), to: new THREE.Vector3(-HALF, -HALF, 0) }, // left
-];
+/* ---------- Main torus knot ---------- */
+const KNOT_R = 1.6;
+const KNOT_TUBE = 0.42;
+const KNOT_P = 2;
+const KNOT_Q = 3;
 
-function makeEdge(from, to, tube, material) {
-  const dir = new THREE.Vector3().subVectors(to, from);
-  const length = dir.length();
-  const mid = new THREE.Vector3().addVectors(from, to).multiplyScalar(0.5);
-  const geo = new THREE.CylinderGeometry(tube, tube, length, 10, 40, false);
-  const mesh = new THREE.Mesh(geo, material);
-  mesh.position.copy(mid);
-  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
-  return { mesh, geo };
-}
+const knotGeo = new THREE.TorusKnotGeometry(KNOT_R, KNOT_TUBE, 256, 32, KNOT_P, KNOT_Q);
+knotGeo.setDrawRange(0, 0);
+const knotMesh = new THREE.Mesh(knotGeo, logoMat);
+logoGroup.add(knotMesh);
 
-edges.forEach((e, i) => {
-  const main = makeEdge(e.from, e.to, FRAME_TUBE, logoMat);
-  const glowMat = haloMatBase.clone();
-  const glow = makeEdge(e.from, e.to, FRAME_TUBE * 3, glowMat);
-  main.geo.setDrawRange(0, 0);
-  glow.geo.setDrawRange(0, 0);
-  logoGroup.add(main.mesh);
-  logoGroup.add(glow.mesh);
-  // CylinderGeometry is non-indexed — use vertex count
-  const totalMain = main.geo.index ? main.geo.index.count : main.geo.attributes.position.count;
-  const totalGlow = glow.geo.index ? glow.geo.index.count : glow.geo.attributes.position.count;
-  logoParts.push({
-    mainGeo: main.geo,
-    glowGeo: glow.geo,
-    glowMat,
-    totalMain,
-    totalGlow,
-    introStart: 0.15 + i * 0.12,
-    introDuration: 0.7,
-  });
+// Wireframe overlay — same geometry, slightly inflated look via thin line
+const wireGeo = new THREE.TorusKnotGeometry(KNOT_R, KNOT_TUBE * 1.06, 256, 12, KNOT_P, KNOT_Q);
+const wireMat = new THREE.MeshBasicMaterial({
+  color: 0xff6b9d,
+  wireframe: true,
+  transparent: true,
+  opacity: 0,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
 });
-
-/* ---------- Quarter arc inside the square ----------
- * Matches reference: arc center at bottom-left corner (-HALF, -HALF),
- * radius = SIZE, arc bulges into the square (toward top-right).
- * Endpoints: top-left (-HALF, +HALF) and bottom-right (+HALF, -HALF).
- *
- * TorusGeometry default sweeps from (R,0) counter-clockwise to (0,R).
- * With center at bottom-left corner:
- *   start point: center + (0, +R) = (-HALF, -HALF+R) = (-HALF, +HALF)  ← top-left ✓
- *   end point:   center + (R, 0)  = (-HALF+R, -HALF) = (+HALF, -HALF)  ← bottom-right ✓
- * The default torus sweep (R,0)->(0,R) goes the other way, so we flip
- * the sweep direction by scaling X by -1 (rotate 180° about Y).
- */
-const arcMainGeo = new THREE.TorusGeometry(ARC_RADIUS, ARC_TUBE, RADIAL, TUBULAR, Math.PI / 2);
-const arcMainMesh = new THREE.Mesh(arcMainGeo, logoMat);
-arcMainMesh.position.set(-HALF, -HALF, 0);
-arcMainMesh.rotation.y = Math.PI; // flip sweep direction
-arcMainGeo.setDrawRange(0, 0);
-logoGroup.add(arcMainMesh);
-
-const arcGlowGeo = new THREE.TorusGeometry(ARC_RADIUS, ARC_TUBE * 3, 14, TUBULAR, Math.PI / 2);
-const arcGlowMat = haloMatBase.clone();
-arcGlowMat.color = new THREE.Color(0xff6b9d);
-const arcGlowMesh = new THREE.Mesh(arcGlowGeo, arcGlowMat);
-arcGlowMesh.position.set(-HALF, -HALF, 0);
-arcGlowMesh.rotation.y = Math.PI;
-arcGlowGeo.setDrawRange(0, 0);
-logoGroup.add(arcGlowMesh);
+wireGeo.setDrawRange(0, 0);
+const wireMesh = new THREE.Mesh(wireGeo, wireMat);
+logoGroup.add(wireMesh);
 
 logoParts.push({
-  mainGeo: arcMainGeo,
-  glowGeo: arcGlowGeo,
-  glowMat: arcGlowMat,
-  totalMain: arcMainGeo.index.count,
-  totalGlow: arcGlowGeo.index.count,
-  introStart: 0.7, // after frame has started drawing
-  introDuration: 1.4,
+  mainGeo: knotGeo,
+  glowGeo: wireGeo,
+  glowMat: wireMat,
+  totalMain: knotGeo.index.count,
+  totalGlow: wireGeo.index.count,
+  introStart: 0.2,
+  introDuration: 1.8,
+});
+
+/* ---------- Inner glowing core orb ---------- */
+const coreOrbGeo = new THREE.IcosahedronGeometry(0.55, 2);
+const coreOrbMat = new THREE.MeshBasicMaterial({
+  color: 0xffffff,
+  transparent: true,
+  opacity: 0.9,
+  blending: THREE.AdditiveBlending,
+});
+const coreOrb = new THREE.Mesh(coreOrbGeo, coreOrbMat);
+logoGroup.add(coreOrb);
+
+// Outer soft halo around the orb
+const haloGeo = new THREE.IcosahedronGeometry(0.95, 2);
+const haloMat = new THREE.MeshBasicMaterial({
+  color: 0xff6b9d,
+  transparent: true,
+  opacity: 0.25,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
+});
+const haloMesh = new THREE.Mesh(haloGeo, haloMat);
+logoGroup.add(haloMesh);
+
+/* ---------- Orbiting rings around the knot ---------- */
+const rings = [];
+const ringConfigs = [
+  { radius: 2.6, tube: 0.015, color: 0xff6b9d, tilt: [Math.PI / 2, 0, 0] },
+  { radius: 2.9, tube: 0.012, color: 0x4facfe, tilt: [Math.PI / 2, 0, Math.PI / 4] },
+  { radius: 3.2, tube: 0.010, color: 0xc44cf7, tilt: [Math.PI / 2, Math.PI / 5, Math.PI / 2.2] },
+];
+ringConfigs.forEach((cfg, i) => {
+  const rg = new THREE.TorusGeometry(cfg.radius, cfg.tube, 8, 160);
+  const rm = new THREE.MeshBasicMaterial({
+    color: cfg.color,
+    transparent: true,
+    opacity: 0.55,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  const ring = new THREE.Mesh(rg, rm);
+  ring.rotation.set(...cfg.tilt);
+  ring.userData = { baseRot: [...cfg.tilt], speed: 0.12 + i * 0.08 };
+  logoGroup.add(ring);
+  rings.push(ring);
 });
 
 logoGroup.rotation.x = -0.12;
 
-// Kept for compatibility with animation loop (no more endpoint orbs)
+// Legacy compatibility (unused)
 const orbA = null;
 const orbB = null;
 
@@ -323,7 +318,7 @@ function animate() {
   coreGroup.scale.x += (s - coreGroup.scale.x) * 0.06;
   coreGroup.scale.y = coreGroup.scale.z = coreGroup.scale.x;
 
-  // ===== LOGO: draw-in intro (square frame edges, then the arc) =====
+  // ===== LOGO: draw-in intro (knot + wireframe overlay) =====
   logoParts.forEach((part) => {
     const elapsed = t - part.introStart;
     const p = Math.max(0, Math.min(1, elapsed / part.introDuration));
@@ -331,16 +326,34 @@ function animate() {
 
     part.mainGeo.setDrawRange(0, Math.floor(part.totalMain * drawT));
     part.glowGeo.setDrawRange(0, Math.floor(part.totalGlow * drawT));
-    part.glowMat.opacity = drawT * (0.25 + Math.sin(t * 2) * 0.12);
+    part.glowMat.opacity = drawT * (0.22 + Math.sin(t * 2) * 0.1);
   });
 
-  // Shared material shimmer
+  // Shared material shimmer — iridescence breathing
   logoMat.emissiveIntensity = 0.22 + Math.sin(t * 1.4) * 0.14;
 
+  // Knot continuous spin
+  knotMesh.rotation.y = t * 0.35;
+  knotMesh.rotation.x = Math.sin(t * 0.25) * 0.3;
+  wireMesh.rotation.copy(knotMesh.rotation);
+
+  // Core orb pulse
+  const orbPulse = 1 + Math.sin(t * 2.2) * 0.08;
+  coreOrb.scale.setScalar(orbPulse);
+  coreOrbMat.opacity = 0.75 + Math.sin(t * 2.2) * 0.2;
+  haloMesh.scale.setScalar(1 + Math.sin(t * 1.5) * 0.1);
+  haloMat.opacity = 0.18 + Math.sin(t * 1.5) * 0.08;
+
+  // Rings orbit
+  rings.forEach((ring, i) => {
+    const [rx, ry, rz] = ring.userData.baseRot;
+    ring.rotation.set(rx, ry + t * ring.userData.speed, rz);
+  });
+
   // Whole logo: gentle breathing + subtle 3D rocking
-  logoGroup.scale.setScalar(1 + Math.sin(t * 0.8) * 0.015);
-  logoGroup.rotation.x = -0.12 + Math.sin(t * 0.5) * 0.06;
-  logoGroup.rotation.y = Math.sin(t * 0.4) * 0.1;
+  logoGroup.scale.setScalar(1 + Math.sin(t * 0.8) * 0.02);
+  logoGroup.rotation.x = -0.12 + Math.sin(t * 0.5) * 0.05;
+  logoGroup.rotation.y = Math.sin(t * 0.4) * 0.08;
 
   // Scroll-driven position (independent of camera)
   logoGroup.position.x += (targetState.logoPos.x - logoGroup.position.x) * 0.05;
