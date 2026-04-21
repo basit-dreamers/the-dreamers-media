@@ -39,7 +39,11 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
-  background: var(--bg);
+  background:
+    radial-gradient(ellipse at 20% 30%, rgba(196, 76, 247, 0.18) 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 70%, rgba(79, 172, 254, 0.14) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 50%, rgba(255, 107, 157, 0.08) 0%, transparent 60%),
+    var(--bg);
   color: var(--text);
   font-family: 'Author', system-ui, sans-serif;
   font-weight: 400;

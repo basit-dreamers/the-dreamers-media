@@ -14,7 +14,7 @@ camera.position.set(0, 0, 10);
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setClearColor(0x05050a, 1);
+renderer.setClearColor(0x05050a, 0);    // transparent — body bg handles fallback
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -440,17 +440,17 @@ function updateFromScroll() {
   scrollProgress = p;
   document.getElementById('scrollProgress').style.width = (p * 100) + '%';
 
-  // On mobile/portrait, freeze the camera at the hero state so the king
-  // stays big & centered behind every panel (otherwise scenes 2-6 push it
-  // far off-screen and small, making the canvas look like a black bg).
+  // On mobile/portrait, freeze the camera at a CLOSE, centered position so
+  // the king fills the frame and acts as a constant immersive backdrop behind
+  // every panel (otherwise the camera retreats to z=12+ and the king becomes
+  // a speck behind the content cards — reading as a "black background").
   const isPortrait = window.innerWidth / window.innerHeight < 1;
   if (isPortrait) {
-    const a = sceneStates[0];
-    targetState.camPos.fromArray(a.camPos);
-    targetState.camLook.fromArray(a.camLook);
-    targetState.coreRot.set(0, scrollProgress * Math.PI * 2, 0); // gentle spin per-panel
-    targetState.coreScale = 1;
-    targetState.logoPos.fromArray(a.logoPos);
+    targetState.camPos.set(0, 0, 7);    // much closer than desktop's z=12
+    targetState.camLook.set(0, 0, 0);
+    targetState.coreRot.set(0, scrollProgress * Math.PI * 2, 0); // slow spin
+    targetState.coreScale = 1.4;        // beef it up
+    targetState.logoPos.set(0, 0, 0);
     return;
   }
 
