@@ -73,16 +73,17 @@ scene.add(coreGroup);
 const logoGroup = new THREE.Group();
 coreGroup.add(logoGroup);
 
-/* ---------- Logo geometry: single quarter-arc ---------- */
-const SIZE = 3.2;              // conceptual side length (sets arc radius)
-const ARC_TUBE = 0.16;         // thickness of the quarter arc
-const ARC_RADIUS = SIZE;       // arc spans full side
+/* ---------- Logo geometry: square frame + single quarter-arc inside ---------- */
+const SIZE = 3.4;              // side length of the square
+const FRAME_TUBE = 0.06;       // thin frame edges (match the thin stroke of the real logo)
+const ARC_TUBE = 0.06;         // arc thickness (same as frame — single-weight line art)
+const ARC_RADIUS = SIZE;       // arc spans full side so it touches the opposite corners
 const TUBULAR = 192;
-const RADIAL = 24;
+const RADIAL = 16;
 
 const HALF = SIZE / 2;
 
-// Shared white metallic material for the arc
+// Shared white metallic material
 const logoMat = new THREE.MeshPhysicalMaterial({
   color: 0xffffff,
   roughness: 0.12,
@@ -90,37 +91,87 @@ const logoMat = new THREE.MeshPhysicalMaterial({
   clearcoat: 1,
   clearcoatRoughness: 0.08,
   emissive: 0xc44cf7,
-  emissiveIntensity: 0.3,
+  emissiveIntensity: 0.25,
   transparent: true,
   opacity: 1,
 });
 
-const logoParts = []; // { mainGeo, glowGeo, glowMat, totalMain, totalGlow, introStart, introDuration }
-
-/*
- * Quarter arc: circle-center sits at the top-left, arc sweeps from
- * the top-right corner down to the bottom-left corner (matches reference).
- * TorusGeometry default sweeps (R,0) -> (0,R). We rotate about X by PI
- * to mirror the sweep to (R,0) -> (0,-R).
- */
-const arcMainGeo = new THREE.TorusGeometry(ARC_RADIUS, ARC_TUBE, RADIAL, TUBULAR, Math.PI / 2);
-const arcMainMesh = new THREE.Mesh(arcMainGeo, logoMat);
-arcMainMesh.position.set(-HALF, HALF, 0);
-arcMainMesh.rotation.x = Math.PI;
-arcMainGeo.setDrawRange(0, 0);
-logoGroup.add(arcMainMesh);
-
-const arcGlowGeo = new THREE.TorusGeometry(ARC_RADIUS, ARC_TUBE * 2.8, 14, TUBULAR, Math.PI / 2);
-const arcGlowMat = new THREE.MeshBasicMaterial({
-  color: 0xff6b9d,
+const haloMatBase = new THREE.MeshBasicMaterial({
+  color: 0xc44cf7,
   transparent: true,
   opacity: 0,
   blending: THREE.AdditiveBlending,
   depthWrite: false,
 });
+
+const logoParts = [];
+
+/* ---------- Square frame: 4 edges as thin cylinders ---------- */
+const edges = [
+  { from: new THREE.Vector3(-HALF, -HALF, 0), to: new THREE.Vector3( HALF, -HALF, 0) }, // bottom
+  { from: new THREE.Vector3( HALF, -HALF, 0), to: new THREE.Vector3( HALF,  HALF, 0) }, // right
+  { from: new THREE.Vector3( HALF,  HALF, 0), to: new THREE.Vector3(-HALF,  HALF, 0) }, // top
+  { from: new THREE.Vector3(-HALF,  HALF, 0), to: new THREE.Vector3(-HALF, -HALF, 0) }, // left
+];
+
+function makeEdge(from, to, tube, material) {
+  const dir = new THREE.Vector3().subVectors(to, from);
+  const length = dir.length();
+  const mid = new THREE.Vector3().addVectors(from, to).multiplyScalar(0.5);
+  const geo = new THREE.CylinderGeometry(tube, tube, length, 10, 40, false);
+  const mesh = new THREE.Mesh(geo, material);
+  mesh.position.copy(mid);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+  return { mesh, geo };
+}
+
+edges.forEach((e, i) => {
+  const main = makeEdge(e.from, e.to, FRAME_TUBE, logoMat);
+  const glowMat = haloMatBase.clone();
+  const glow = makeEdge(e.from, e.to, FRAME_TUBE * 3, glowMat);
+  main.geo.setDrawRange(0, 0);
+  glow.geo.setDrawRange(0, 0);
+  logoGroup.add(main.mesh);
+  logoGroup.add(glow.mesh);
+  // CylinderGeometry is non-indexed — use vertex count
+  const totalMain = main.geo.index ? main.geo.index.count : main.geo.attributes.position.count;
+  const totalGlow = glow.geo.index ? glow.geo.index.count : glow.geo.attributes.position.count;
+  logoParts.push({
+    mainGeo: main.geo,
+    glowGeo: glow.geo,
+    glowMat,
+    totalMain,
+    totalGlow,
+    introStart: 0.15 + i * 0.12,
+    introDuration: 0.7,
+  });
+});
+
+/* ---------- Quarter arc inside the square ----------
+ * Matches reference: arc center at bottom-left corner (-HALF, -HALF),
+ * radius = SIZE, arc bulges into the square (toward top-right).
+ * Endpoints: top-left (-HALF, +HALF) and bottom-right (+HALF, -HALF).
+ *
+ * TorusGeometry default sweeps from (R,0) counter-clockwise to (0,R).
+ * With center at bottom-left corner:
+ *   start point: center + (0, +R) = (-HALF, -HALF+R) = (-HALF, +HALF)  ← top-left ✓
+ *   end point:   center + (R, 0)  = (-HALF+R, -HALF) = (+HALF, -HALF)  ← bottom-right ✓
+ * The default torus sweep (R,0)->(0,R) goes the other way, so we flip
+ * the sweep direction by scaling X by -1 (rotate 180° about Y).
+ */
+const arcMainGeo = new THREE.TorusGeometry(ARC_RADIUS, ARC_TUBE, RADIAL, TUBULAR, Math.PI / 2);
+const arcMainMesh = new THREE.Mesh(arcMainGeo, logoMat);
+arcMainMesh.position.set(-HALF, -HALF, 0);
+arcMainMesh.rotation.y = Math.PI; // flip sweep direction
+arcMainGeo.setDrawRange(0, 0);
+logoGroup.add(arcMainMesh);
+
+const arcGlowGeo = new THREE.TorusGeometry(ARC_RADIUS, ARC_TUBE * 3, 14, TUBULAR, Math.PI / 2);
+const arcGlowMat = haloMatBase.clone();
+arcGlowMat.color = new THREE.Color(0xff6b9d);
 const arcGlowMesh = new THREE.Mesh(arcGlowGeo, arcGlowMat);
-arcGlowMesh.position.set(-HALF, HALF, 0);
-arcGlowMesh.rotation.x = Math.PI;
+arcGlowMesh.position.set(-HALF, -HALF, 0);
+arcGlowMesh.rotation.y = Math.PI;
 arcGlowGeo.setDrawRange(0, 0);
 logoGroup.add(arcGlowMesh);
 
@@ -130,32 +181,15 @@ logoParts.push({
   glowMat: arcGlowMat,
   totalMain: arcMainGeo.index.count,
   totalGlow: arcGlowGeo.index.count,
-  introStart: 0.3,
+  introStart: 0.7, // after frame has started drawing
   introDuration: 1.4,
 });
 
-// Glowing endpoint orbs at the arc's two tips
-function makeOrb(x, y) {
-  const orb = new THREE.Mesh(
-    new THREE.SphereGeometry(0.16, 24, 24),
-    new THREE.MeshPhysicalMaterial({
-      color: 0xffffff,
-      emissive: 0xffffff,
-      emissiveIntensity: 1.6,
-      roughness: 0.2,
-      metalness: 0.5,
-      transparent: true,
-      opacity: 0,
-    })
-  );
-  orb.position.set(x, y, 0);
-  logoGroup.add(orb);
-  return orb;
-}
-const orbA = makeOrb( HALF,  HALF); // top-right tip
-const orbB = makeOrb(-HALF, -HALF); // bottom-left tip
-
 logoGroup.rotation.x = -0.12;
+
+// Kept for compatibility with animation loop (no more endpoint orbs)
+const orbA = null;
+const orbB = null;
 
 /* ===== Floating Satellites ===== */
 const satellites = [];
@@ -302,14 +336,6 @@ function animate() {
 
   // Material shimmer
   logoMat.emissiveIntensity = 0.28 + Math.sin(t * 1.4) * 0.18;
-
-  // Endpoint orbs fade in with arc
-  const orbFade = Math.max(0, Math.min(1, (t - 1.5) / 0.7));
-  orbA.material.opacity = orbFade;
-  orbB.material.opacity = orbFade;
-  const pulse = 1 + Math.sin(t * 2.2) * 0.2;
-  orbA.scale.setScalar(orbFade * pulse);
-  orbB.scale.setScalar(orbFade * pulse);
 
   // Whole logo breathes + subtle rocking
   logoGroup.scale.setScalar(1 + Math.sin(t * 0.8) * 0.015);

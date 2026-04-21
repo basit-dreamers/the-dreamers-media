@@ -6,8 +6,10 @@
       <stop offset="100%" stop-color="#4facfe"/>
     </linearGradient>
   </defs>
-  <g stroke="url(#g)" stroke-width="6" fill="none" stroke-linecap="round">
-    <!-- Quarter arc: center at top-left (10,10), radius 80, from top-right to bottom-left -->
-    <path d="M 90 10 A 80 80 0 0 0 10 90" />
+  <g stroke="url(#g)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Square frame -->
+    <rect x="6" y="6" width="88" height="88" rx="1"/>
+    <!-- Quarter arc: center at bottom-left (6,94), radius 88, from top-left to bottom-right -->
+    <path d="M 6 6 A 88 88 0 0 1 94 94" />
   </g>
 </svg>
