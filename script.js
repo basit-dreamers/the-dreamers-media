@@ -652,7 +652,9 @@ document.querySelectorAll('[data-hover]').forEach((el) => {
    SCROLL REVEAL — IntersectionObserver for [data-reveal]
    ========================================================= */
 (function setupReveal() {
-  const els = document.querySelectorAll('[data-reveal]');
+  // Observe both [data-reveal] and [data-split] so split-text masks
+  // unlock independently of the reveal wrapper.
+  const els = document.querySelectorAll('[data-reveal], [data-split]');
   const io = new IntersectionObserver((entries) => {
     entries.forEach((entry) => {
       if (entry.isIntersecting) {
@@ -660,7 +662,7 @@ document.querySelectorAll('[data-hover]').forEach((el) => {
         io.unobserve(entry.target);
       }
     });
-  }, { threshold: 0.15, rootMargin: '0px 0px -10% 0px' });
+  }, { threshold: 0.1, rootMargin: '0px 0px -8% 0px' });
   els.forEach((el) => io.observe(el));
 
   // Assign --i to stagger children
