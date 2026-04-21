@@ -906,9 +906,15 @@ document.querySelectorAll('.scene').forEach(s => sceneIo.observe(s));
     const t = e.touches[0];
     touchX = t.clientX;
     touchY = t.clientY;
-    // Only prevent default when we're truly driving a panel swipe
+    // Only prevent default when the gesture is clearly horizontal AND
+    // the touch target isn't a form field/link. Otherwise let the browser
+    // handle vertical scroll inside the panel naturally.
     if (!touchTargetIsScrollable) {
-      e.preventDefault();
+      const dx = Math.abs(touchStartX - touchX);
+      const dy = Math.abs(touchStartY - touchY);
+      if (dx > dy && dx > 10) {
+        e.preventDefault();
+      }
     }
   }, { passive: false });
 
@@ -921,9 +927,9 @@ document.querySelectorAll('.scene').forEach(s => sceneIo.observe(s));
     // Ignore taps
     if (absDx < TAP_THRESHOLD && absDy < TAP_THRESHOLD) return;
     if (touchTargetIsScrollable) return;
-    const delta = absDy > absDx ? dy : dx;
-    if (Math.abs(delta) > SWIPE_THRESHOLD) {
-      goTo(currentIndex() + (delta > 0 ? 1 : -1));
+    // Only advance panel on a clearly horizontal swipe
+    if (absDx > absDy && absDx > SWIPE_THRESHOLD) {
+      goTo(currentIndex() + (dx > 0 ? 1 : -1));
     }
   });
 
