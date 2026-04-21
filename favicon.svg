@@ -6,15 +6,10 @@
       <stop offset="100%" stop-color="#4facfe"/>
     </linearGradient>
   </defs>
-  <!-- Four quarter-arcs hugging the outer corners, converging to center -->
-  <g stroke="url(#g)" stroke-width="4" fill="none" stroke-linecap="round">
-    <!-- bottom-left: center at (0,100), radius 50, arc from (50,100) to (0,50) -->
-    <path d="M 50 100 A 50 50 0 0 0 0 50" />
-    <!-- bottom-right: center at (100,100), radius 50, arc from (100,50) to (50,100) -->
-    <path d="M 100 50 A 50 50 0 0 0 50 100" />
-    <!-- top-right: center at (100,0), radius 50, arc from (50,0) to (100,50) -->
-    <path d="M 50 0 A 50 50 0 0 0 100 50" />
-    <!-- top-left: center at (0,0), radius 50, arc from (0,50) to (50,0) -->
-    <path d="M 0 50 A 50 50 0 0 0 50 0" />
+  <g stroke="url(#g)" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Square frame -->
+    <rect x="6" y="6" width="88" height="88" rx="2"/>
+    <!-- Quarter arc: center at top-left (6,6), radius 88, from top-right corner to bottom-left corner -->
+    <path d="M 94 6 A 88 88 0 0 0 6 94" />
   </g>
 </svg>
