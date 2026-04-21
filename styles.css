@@ -1142,12 +1142,21 @@ a { color: inherit; text-decoration: none; }
 
 /* ===== Responsive ===== */
 @media (max-width: 900px) {
+  /* Kill chamber float on mobile — transforms + low opacity let neighboring
+     panels bleed through at small viewports. Keep scenes crisply isolated. */
+  #scrollHost { perspective: none; }
   .scene {
+    transform: none !important;
+    opacity: 1 !important;
     padding: 88px 20px 72px;
     align-items: flex-start;
+    background: rgba(5, 5, 10, 0.82);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
   }
+  .scene::after { display: none; }  /* no veil between panels on mobile */
   .scene-content { max-height: none; padding-top: 8px; }
-  .scene-hero { padding-top: 96px; }
+  .scene-hero { padding-top: 96px; background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
   .scene-hero .scene-content { align-self: center; padding-top: 0; }
 
   /* Nav */
@@ -1170,33 +1179,35 @@ a { color: inherit; text-decoration: none; }
   .big-text { font-size: clamp(32px, 9vw, 52px) !important; line-height: 1.05; }
   .lead { font-size: 15px; line-height: 1.55; }
   .eyebrow { font-size: 10px; }
-  .section-head { margin-bottom: 20px; }
+  .section-head { margin-bottom: 18px; }
   .section-head h2 { font-size: clamp(26px, 7.5vw, 42px); }
 
-  /* Services */
-  .services-grid { grid-template-columns: 1fr; gap: 14px; }
-  .service-card { padding: 22px 20px; }
-  .service-card h3 { font-size: 20px; }
-  .service-card p { font-size: 13px; }
+  /* Services — 2 columns, compact cards so all 6 fit */
+  .services-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .service-card { padding: 16px 14px; border-radius: 14px; }
+  .service-card h3 { font-size: 15px; margin-top: 8px; }
+  .service-card p { font-size: 11.5px; line-height: 1.45; margin-top: 6px; }
+  .service-icon { font-size: 22px; }
+  .service-num { font-size: 11px; top: 10px; right: 12px; }
 
   /* Work */
-  .work-row { grid-template-columns: 36px 1fr; gap: 14px; padding: 18px 10px; }
+  .work-row { grid-template-columns: 36px 1fr; gap: 14px; padding: 16px 10px; }
   .work-row .work-cat, .work-row .work-year { display: none; }
-  .work-row h3 { font-size: 20px; }
-  .work-index { font-size: 16px; }
+  .work-row h3 { font-size: 19px; }
+  .work-index { font-size: 15px; }
 
   /* Process */
-  .process-track { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .process-track { grid-template-columns: repeat(2, 1fr); gap: 14px; }
   .process-track::before { display: none; }
-  .process-step { padding: 20px 16px; }
-  .process-step h3 { font-size: 20px; }
-  .process-step p { font-size: 13px; }
+  .process-step { padding: 18px 14px; }
+  .process-step h3 { font-size: 19px; }
+  .process-step p { font-size: 12.5px; }
 
   /* Contact form */
   .form-row { grid-template-columns: 1fr; gap: 12px; }
   .contact-form input,
   .contact-form textarea {
-    font-size: 16px;          /* prevents iOS zoom on focus */
+    font-size: 16px;
     padding: 14px 16px;
     min-height: 48px;
   }
@@ -1215,30 +1226,30 @@ a { color: inherit; text-decoration: none; }
   /* Footer */
   .footer { padding: 10px 16px; }
   .footer-inner { flex-direction: row; justify-content: center; gap: 12px; font-size: 10px; text-align: center; }
-  .footer-inner span:nth-child(2) { display: none; }   /* drop the middle tagline */
+  .footer-inner span:nth-child(2) { display: none; }
 
   /* Atmosphere */
   .aurora { opacity: 0.35; filter: blur(50px) saturate(1.2); }
-  .grain { opacity: 0.35; }
+  .grain { opacity: 0.3; }
   .cursor, .cursor-follower { display: none; }
 
-  /* Interactive elements need real finger targets */
+  /* Real finger targets */
   a, button, input, textarea, [data-hover] { cursor: auto !important; }
-  button, .btn, .panel-dots button, .nav-links a {
-    min-height: 44px;
-  }
-
-  /* Allow scrolling inside form fields on touch */
+  button, .btn, .panel-dots button, .nav-links a { min-height: 44px; }
   input, textarea, select { touch-action: manipulation; }
 }
 
 /* Extra-small phones */
 @media (max-width: 420px) {
-  .scene { padding: 84px 16px 68px; }
+  .scene { padding: 84px 14px 68px; }
   .hero-title { font-size: 44px !important; }
   .big-text { font-size: 30px !important; }
   .nav-inner { padding: 12px 16px; }
   .logo span em { display: none; }
+  .services-grid { gap: 8px; }
+  .service-card { padding: 14px 12px; }
+  .service-card h3 { font-size: 14px; }
+  .service-card p { font-size: 11px; }
 }
 
 /* Landscape phones — very short viewport */
@@ -1247,6 +1258,7 @@ a { color: inherit; text-decoration: none; }
   .hero-title { font-size: clamp(36px, 7vw, 56px) !important; }
   .big-text { font-size: clamp(28px, 5.5vw, 44px) !important; }
   .scroll-hint { display: none; }
+  .services-grid { grid-template-columns: repeat(3, 1fr); }
   .footer { padding: 6px 20px; }
   .footer-inner { font-size: 10px; }
 }

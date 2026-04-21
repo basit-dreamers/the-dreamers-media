@@ -810,6 +810,7 @@ document.querySelectorAll('.scene').forEach(s => sceneIo.observe(s));
   const lerpFactor = 0.11;
 
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isMobile = window.matchMedia('(max-width: 900px)').matches;
 
   // Expose state globally
   window.__dreamScroll = {
@@ -1006,6 +1007,9 @@ document.querySelectorAll('.scene').forEach(s => sceneIo.observe(s));
 
     // Per-scene: compute how centered each scene is (0..1) and apply float
     const w = vw();
+    if (isMobile) {
+      // Skip chamber motion entirely on mobile for perf + no bleed
+    } else {
     scenes.forEach((scene, i) => {
       const sceneCenter = i * w + w / 2;
       // Normalized distance from viewport center: -1 (before) → 0 (centered) → 1 (past)
@@ -1033,6 +1037,7 @@ document.querySelectorAll('.scene').forEach(s => sceneIo.observe(s));
       scene.style.setProperty('--veil', (exit * 0.55).toFixed(3));
       scene.style.opacity = (0.35 + enter * 0.65).toFixed(3);
     });
+    }
 
     // Panel dot active state
     const currentIdx = Math.round(current / w);
