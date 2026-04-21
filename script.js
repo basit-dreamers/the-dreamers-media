@@ -807,9 +807,27 @@ document.querySelectorAll('.scene').forEach(s => sceneIo.observe(s));
 
   let target = 0;
   let current = 0;
-  const lerpFactor = 0.085;  // buttery smoothness
+  const lerpFactor = 0.11;  // slightly firmer so it settles instead of drifting
+  const wheelGain = 0.9;    // tame wheel deltas (Windows wheels dump ~100/tick)
+  const snapDelay = 180;    // ms of idle before snapping to nearest panel
+  const snapTolerance = 0.06; // fraction of vw — if closer than this to a panel, snap
 
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let snapTimer = null;
+  function scheduleSnap() {
+    clearTimeout(snapTimer);
+    snapTimer = setTimeout(() => {
+      const w = vw();
+      const idx = Math.round(target / w);
+      const snapped = Math.max(0, Math.min(count - 1, idx)) * w;
+      if (Math.abs(snapped - target) > w * snapTolerance * 0.2) {
+        target = snapped;
+      } else {
+        target = snapped; // always crisp alignment on idle
+      }
+    }, snapDelay);
+  }
 
   // Expose state globally
   window.__dreamScroll = {
@@ -817,7 +835,11 @@ document.querySelectorAll('.scene').forEach(s => sceneIo.observe(s));
       const m = maxScroll();
       return m > 0 ? Math.max(0, Math.min(1, current / m)) : 0;
     },
+    get index() {
+      return Math.round(current / vw());
+    },
     scrollTo(i) {
+      clearTimeout(snapTimer);
       target = Math.max(0, Math.min(maxScroll(), i * vw()));
     },
   };
@@ -826,52 +848,58 @@ document.querySelectorAll('.scene').forEach(s => sceneIo.observe(s));
   window.addEventListener('wheel', (e) => {
     e.preventDefault();
     // Whichever delta is larger in magnitude drives the motion
-    const delta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
-    target = Math.max(0, Math.min(maxScroll(), target + delta));
+    const raw = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+    // Clamp per-event delta so a single furious flick doesn't teleport past a panel
+    const clamped = Math.max(-220, Math.min(220, raw));
+    target = Math.max(0, Math.min(maxScroll(), target + clamped * wheelGain));
+    scheduleSnap();
   }, { passive: false });
 
   // ===== Keyboard
   window.addEventListener('keydown', (e) => {
     if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
-    const step = vw() * 0.9;
+    const w = vw();
     if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
       e.preventDefault();
-      target = Math.min(maxScroll(), target + step);
+      const next = Math.round(target / w) + 1;
+      target = Math.min(maxScroll(), next * w);
     } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
       e.preventDefault();
-      target = Math.max(0, target - step);
+      const prev = Math.round(target / w) - 1;
+      target = Math.max(0, prev * w);
     } else if (e.key === 'Home') { target = 0; }
     else if (e.key === 'End')  { target = maxScroll(); }
   });
 
-  // ===== Touch (vertical swipe = horizontal scroll)
+  // ===== Touch (vertical or horizontal swipe = horizontal scroll)
   let touchX = 0, touchY = 0, touching = false;
   window.addEventListener('touchstart', (e) => {
     const t = e.touches[0];
     touchX = t.clientX; touchY = t.clientY; touching = true;
+    clearTimeout(snapTimer);
   }, { passive: true });
   window.addEventListener('touchmove', (e) => {
     if (!touching) return;
     const t = e.touches[0];
     const dx = touchX - t.clientX;
     const dy = touchY - t.clientY;
-    // Use dominant axis
     const delta = Math.abs(dy) > Math.abs(dx) ? dy : dx;
-    target = Math.max(0, Math.min(maxScroll(), target + delta * 1.5));
+    target = Math.max(0, Math.min(maxScroll(), target + delta * 1.4));
     touchX = t.clientX; touchY = t.clientY;
     e.preventDefault();
   }, { passive: false });
-  window.addEventListener('touchend', () => { touching = false; });
+  window.addEventListener('touchend', () => { touching = false; scheduleSnap(); });
 
-  // ===== Nav clicks
+  // ===== Nav clicks (including panel dots)
   document.querySelectorAll('[data-scroll-to]').forEach((a) => {
     a.addEventListener('click', (e) => {
       e.preventDefault();
       const i = parseInt(a.dataset.scrollTo, 10);
+      clearTimeout(snapTimer);
       target = Math.max(0, Math.min(maxScroll(), i * vw()));
     });
   });
-  // Also hijack #hash links
+  // Also hijack #hash links that don't already have data-scroll-to
   document.querySelectorAll('a[href^="#"]').forEach((a) => {
     if (a.hasAttribute('data-scroll-to')) return;
     const id = a.getAttribute('href').slice(1);
@@ -881,14 +909,21 @@ document.querySelectorAll('.scene').forEach(s => sceneIo.observe(s));
     a.addEventListener('click', (e) => {
       e.preventDefault();
       const idx = scenes.indexOf(target$.closest('.scene') || target$);
-      if (idx >= 0) target = idx * vw();
+      if (idx >= 0) { clearTimeout(snapTimer); target = idx * vw(); }
     });
   });
 
   // ===== Resize
   window.addEventListener('resize', () => {
-    target = Math.max(0, Math.min(maxScroll(), target));
+    // Keep aligned to current panel index when the viewport resizes
+    const idx = Math.round(current / vw());
+    target = idx * vw();
+    current = target;
   });
+
+  // ===== Panel dot active state
+  const dots = [...document.querySelectorAll('.panel-dots button')];
+  let lastDotIdx = -1;
 
   // ===== Per-scene entry variants (randomized chambers)
   function seeded(seed) {
@@ -899,15 +934,15 @@ document.querySelectorAll('.scene').forEach(s => sceneIo.observe(s));
     if (i === 0) return { tx:0, ty:0, tz:0, rx:0, ry:0, rz:0 };
     const rand = seeded(i + 7);
     const angle = rand() * Math.PI * 2;
-    const distance = 140 + rand() * 220;
-    const depth = -(240 + rand() * 520);
+    const distance = 70 + rand() * 110;     // gentler lateral drift
+    const depth = -(120 + rand() * 240);    // gentler Z push
     return {
       tx: Math.cos(angle) * distance,
-      ty: Math.sin(angle) * distance + (rand() - 0.5) * 160,
+      ty: Math.sin(angle) * distance * 0.5 + (rand() - 0.5) * 70,
       tz: depth,
-      rx: (rand() - 0.5) * 22,
-      ry: (rand() - 0.5) * 26,
-      rz: (rand() - 0.5) * 10,
+      rx: (rand() - 0.5) * 10,
+      ry: (rand() - 0.5) * 12,
+      rz: (rand() - 0.5) * 5,
     };
   });
 
@@ -935,17 +970,19 @@ document.querySelectorAll('.scene').forEach(s => sceneIo.observe(s));
     scenes.forEach((scene, i) => {
       const sceneCenter = i * w + w / 2;
       // Normalized distance from viewport center: -1 (before) → 0 (centered) → 1 (past)
-      const d = Math.max(-1.3, Math.min(1.3, (sceneCenter - current - w / 2) / (w * 0.9)));
-      const enter = 1 - Math.min(1, Math.abs(d));
-      const exit = 1 - enter;
+      const d = Math.max(-1.2, Math.min(1.2, (sceneCenter - current - w / 2) / w));
+      // Smoothstep so centered zone stays calm and edges ease out
+      const absD = Math.min(1, Math.abs(d));
+      const exit = absD * absD * (3 - 2 * absD);
+      const enter = 1 - exit;
       const sign = d >= 0 ? 1 : -1;
       const v = variants[i];
 
-      const tx = v.tx * exit * sign + mx * 18 * enter;
-      const ty = v.ty * exit * sign + my * 14 * enter;
+      const tx = v.tx * exit * sign + mx * 12 * enter;
+      const ty = v.ty * exit * sign + my * 10 * enter;
       const tz = v.tz * exit;
-      const rx = v.rx * exit * sign + my * 2.5 * enter;
-      const ry = v.ry * exit * sign + mx * 3 * enter;
+      const rx = v.rx * exit * sign + my * 1.6 * enter;
+      const ry = v.ry * exit * sign + mx * 2 * enter;
       const rz = v.rz * exit * sign;
 
       scene.style.setProperty('--px', `${tx.toFixed(1)}px`);
@@ -954,9 +991,16 @@ document.querySelectorAll('.scene').forEach(s => sceneIo.observe(s));
       scene.style.setProperty('--rx', `${rx.toFixed(2)}deg`);
       scene.style.setProperty('--ry', `${ry.toFixed(2)}deg`);
       scene.style.setProperty('--rz', `${rz.toFixed(2)}deg`);
-      scene.style.setProperty('--veil', (exit * 0.8).toFixed(3));
-      scene.style.opacity = (0.2 + enter * 0.8).toFixed(3);
+      scene.style.setProperty('--veil', (exit * 0.55).toFixed(3));
+      scene.style.opacity = (0.35 + enter * 0.65).toFixed(3);
     });
+
+    // Panel dot active state
+    const currentIdx = Math.round(current / w);
+    if (currentIdx !== lastDotIdx) {
+      dots.forEach((d, i) => d.classList.toggle('active', i === currentIdx));
+      lastDotIdx = currentIdx;
+    }
 
     // Notify the 3D scene to re-read scrollProgress
     if (typeof updateFromScroll === 'function') updateFromScroll();
