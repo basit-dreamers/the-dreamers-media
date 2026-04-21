@@ -449,7 +449,15 @@ function updateFromScroll() {
 
   const ease = t * t * (3 - 2 * t); // smoothstep
 
+  // Dampen lateral camera offset on narrow (portrait) screens so the king
+  // never leaves the frame.
+  const aspect = window.innerWidth / window.innerHeight;
+  const lateralScale = aspect < 1 ? Math.max(0.25, aspect * 0.8) : 1;
+  const verticalScale = aspect < 1 ? 0.6 : 1;
+
   targetState.camPos.fromArray(lerpArr(a.camPos, b.camPos, ease));
+  targetState.camPos.x *= lateralScale;
+  targetState.camPos.y *= verticalScale;
   targetState.camLook.fromArray(lerpArr(a.camLook, b.camLook, ease));
   targetState.coreRot.set(
     lerp(a.coreRot[0], b.coreRot[0], ease),
@@ -597,10 +605,29 @@ animate();
 /* =========================================================
    RESIZE
    ========================================================= */
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
+function applyCameraFov() {
+  // On narrow (portrait) aspect ratios, widen the FOV so the 3D subject
+  // doesn't get cropped when the camera moves off-center.
+  const aspect = window.innerWidth / window.innerHeight;
+  if (aspect < 1) {
+    // Portrait: scale FOV inversely with aspect, clamped.
+    camera.fov = Math.min(95, 60 / aspect);
+  } else {
+    camera.fov = 60;
+  }
+  camera.aspect = aspect;
   camera.updateProjectionMatrix();
+}
+applyCameraFov();
+window.addEventListener('resize', () => {
+  applyCameraFov();
   renderer.setSize(window.innerWidth, window.innerHeight);
+});
+window.addEventListener('orientationchange', () => {
+  setTimeout(() => {
+    applyCameraFov();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }, 250);
 });
 
 /* =========================================================
