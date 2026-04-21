@@ -15,9 +15,15 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true 
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setClearColor(0x05050a, 1);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 /* ===== Lights ===== */
-scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+
+// Hemisphere fill — sky/ground gradient for realistic PBR ambient
+scene.add(new THREE.HemisphereLight(0xb0c4ff, 0x20102a, 0.5));
 
 const keyLight = new THREE.PointLight(0xff6b9d, 3, 50);
 keyLight.position.set(8, 6, 6);
@@ -30,6 +36,11 @@ scene.add(fillLight);
 const rimLight = new THREE.PointLight(0xc44cf7, 2, 40);
 rimLight.position.set(0, 0, -10);
 scene.add(rimLight);
+
+// Top studio light to rake the king's polished clearcoat
+const studioLight = new THREE.DirectionalLight(0xffffff, 0.8);
+studioLight.position.set(2, 10, 4);
+scene.add(studioLight);
 
 /* ===== Starfield ===== */
 const starGeo = new THREE.BufferGeometry();
@@ -84,151 +95,175 @@ const haloMatBase = new THREE.MeshBasicMaterial({
 });
 const logoParts = [];
 
-/* ---------- Materials ---------- */
+/* ---------- Materials — realistic polished obsidian/marble ---------- */
 const kingMat = new THREE.MeshPhysicalMaterial({
-  color: 0xf5f5fa,
-  roughness: 0.18,
-  metalness: 0.95,
+  color: 0x1a1a22,          // deep near-black like polished obsidian
+  roughness: 0.22,
+  metalness: 0.35,
   clearcoat: 1,
-  clearcoatRoughness: 0.08,
-  emissive: 0xc44cf7,
-  emissiveIntensity: 0.22,
+  clearcoatRoughness: 0.04,
+  reflectivity: 0.6,
+  sheen: 0.4,
+  sheenColor: 0x6b5b8a,
+  emissive: 0x000000,
+  emissiveIntensity: 0,
 });
 
-const crossMat = new THREE.MeshPhysicalMaterial({
-  color: 0xfee140,
-  roughness: 0.2,
+// Subtle silver trim for the decorative bands — much more restrained
+const trimMat = new THREE.MeshPhysicalMaterial({
+  color: 0x8890a8,
+  roughness: 0.25,
   metalness: 1,
-  emissive: 0xfee140,
-  emissiveIntensity: 0.5,
-  clearcoat: 1,
+  clearcoat: 0.7,
+  clearcoatRoughness: 0.1,
 });
 
-const baseAccentMat = new THREE.MeshPhysicalMaterial({
-  color: 0xff6b9d,
+// Globe materials — wireframe Earth on top of the king
+const globeMat = new THREE.MeshPhysicalMaterial({
+  color: 0x0a1428,
   roughness: 0.3,
-  metalness: 0.8,
-  emissive: 0xff6b9d,
-  emissiveIntensity: 0.3,
+  metalness: 0.6,
+  clearcoat: 1,
+  clearcoatRoughness: 0.05,
+  transparent: true,
+  opacity: 0.55,
+});
+const meridianMat = new THREE.MeshBasicMaterial({
+  color: 0xc44cf7,
+  transparent: true,
+  opacity: 0.85,
 });
 
-/* ---------- King body — lathe from a 2D profile ---------- */
-/*
-  Profile (X = radius, Y = height). Traditional Staunton silhouette:
-  wide base, stepped foot ring, tapering column, collar, bishop-like
-  onion bulge, narrow neck, flared crown with battlements, topped by a cross.
-*/
-// Inner wrapper so we can offset the king's pivot without fighting
-// the scroll-driven logoGroup.position lerp.
+// Pedestal stone material
+const pedestalMat = new THREE.MeshPhysicalMaterial({
+  color: 0x0e0e16,
+  roughness: 0.45,
+  metalness: 0.2,
+  clearcoat: 0.5,
+});
+
+/* ---------- King body — refined Staunton lathe profile ---------- */
+// Inner wrapper so the scroll-driven logoGroup.position lerp stays intact.
 const kingWrapper = new THREE.Group();
 kingWrapper.position.y = -1.4;
 logoGroup.add(kingWrapper);
+
+/*
+ * Traditional Staunton silhouette (radius vs height) — smoother, more
+ * realistic than the previous zig-zag version: wide tiered base, long
+ * slender column, rounded collar, subtle neck narrowing into the crown.
+ */
 const profile = [
   [0.00, 0.00],
-  [1.10, 0.00],
-  [1.10, 0.08],
-  [1.00, 0.18],
-  [1.05, 0.22],
-  [1.05, 0.32],
-  [0.85, 0.40],
-  [0.75, 0.55],
-  [0.55, 0.75],
-  [0.45, 1.10],
-  [0.42, 1.55],
-  [0.55, 1.75],
-  [0.65, 1.85],
-  [0.50, 1.95],
-  [0.40, 2.05],   // neck
-  [0.42, 2.15],
-  [0.55, 2.25],   // base of crown
-  [0.80, 2.35],   // crown flare out
-  [0.88, 2.50],
-  [0.85, 2.65],
-  [0.75, 2.75],   // top rim of crown (battlement base)
-  [0.00, 2.75],
+  [1.15, 0.00],
+  [1.15, 0.05],
+  [1.10, 0.10],
+  [1.02, 0.16],
+  [1.06, 0.20],
+  [1.06, 0.28],
+  [0.95, 0.35],
+  [0.80, 0.45],
+  [0.62, 0.60],
+  [0.48, 0.80],
+  [0.42, 1.05],
+  [0.40, 1.35],
+  [0.40, 1.65],
+  [0.45, 1.80],
+  [0.60, 1.92],
+  [0.68, 2.00],
+  [0.52, 2.07],
+  [0.44, 2.15],
+  [0.48, 2.22],
+  [0.62, 2.30],
+  [0.80, 2.40],
+  [0.86, 2.55],
+  [0.82, 2.70],
+  [0.70, 2.78],
+  [0.00, 2.78],
 ];
 
 const profilePoints = profile.map(([x, y]) => new THREE.Vector2(x, y));
-const kingBodyGeo = new THREE.LatheGeometry(profilePoints, 96);
+const kingBodyGeo = new THREE.LatheGeometry(profilePoints, 128);
+kingBodyGeo.computeVertexNormals();
 const kingBody = new THREE.Mesh(kingBodyGeo, kingMat);
+kingBody.castShadow = true;
+kingBody.receiveShadow = true;
 kingWrapper.add(kingBody);
 
-/* ---------- Crown battlements — 8 little blocks around the top ---------- */
-const battlements = new THREE.Group();
-const battCount = 8;
-for (let i = 0; i < battCount; i++) {
-  const ang = (i / battCount) * Math.PI * 2;
-  const b = new THREE.Mesh(
-    new THREE.BoxGeometry(0.22, 0.18, 0.22),
-    kingMat
+/* ---------- Subtle silver trim rings ---------- */
+function addTrimRing(y, radius, tube = 0.022) {
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(radius, tube, 12, 96),
+    trimMat
   );
-  const r = 0.72;
-  b.position.set(Math.cos(ang) * r, 2.82, Math.sin(ang) * r);
-  b.rotation.y = -ang;
-  battlements.add(b);
+  ring.position.y = y;
+  ring.rotation.x = Math.PI / 2;
+  kingWrapper.add(ring);
+  return ring;
 }
-kingWrapper.add(battlements);
+addTrimRing(0.21, 1.09);   // base trim
+addTrimRing(1.92, 0.62);   // collar trim
+addTrimRing(2.29, 0.51);   // below crown
 
-// Decorative pink ring at the base of the crown
-const crownRing = new THREE.Mesh(
-  new THREE.TorusGeometry(0.58, 0.045, 10, 64),
-  baseAccentMat
+/* ---------- Pedestal beneath the king ---------- */
+const pedestalGeo = new THREE.CylinderGeometry(1.45, 1.6, 0.22, 64);
+const pedestal = new THREE.Mesh(pedestalGeo, pedestalMat);
+pedestal.position.y = -0.12;
+pedestal.receiveShadow = true;
+kingWrapper.add(pedestal);
+
+/* ---------- Globe on top (replaces the cross) ---------- */
+const globeGroup = new THREE.Group();
+
+// Core globe sphere (subtle dark glass)
+const globeR = 0.42;
+const globeCore = new THREE.Mesh(
+  new THREE.SphereGeometry(globeR, 48, 32),
+  globeMat
 );
-crownRing.position.y = 2.28;
-crownRing.rotation.x = Math.PI / 2;
-kingWrapper.add(crownRing);
+globeGroup.add(globeCore);
 
-// Decorative ring on the collar
-const collarRing = new THREE.Mesh(
-  new THREE.TorusGeometry(0.58, 0.04, 10, 64),
-  baseAccentMat
+// Meridian lines (longitudes) — thin torus rings tilted at various Y angles
+const meridianCount = 8;
+for (let i = 0; i < meridianCount; i++) {
+  const mer = new THREE.Mesh(
+    new THREE.TorusGeometry(globeR * 1.005, 0.006, 8, 96),
+    meridianMat
+  );
+  mer.rotation.y = (i / meridianCount) * Math.PI;
+  globeGroup.add(mer);
+}
+
+// Parallels (latitudes) — horizontal rings at varying heights
+const parallels = [-0.7, -0.4, 0, 0.4, 0.7];
+parallels.forEach((t) => {
+  const r = globeR * Math.sqrt(1 - t * t);
+  const par = new THREE.Mesh(
+    new THREE.TorusGeometry(r * 1.005, 0.006, 8, 96),
+    meridianMat
+  );
+  par.rotation.x = Math.PI / 2;
+  par.position.y = globeR * t;
+  globeGroup.add(par);
+});
+
+// Mounting post between king neck and globe
+const post = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.08, 0.1, 0.25, 16),
+  trimMat
 );
-collarRing.position.y = 1.78;
-collarRing.rotation.x = Math.PI / 2;
-kingWrapper.add(collarRing);
+post.position.y = -0.55;
+globeGroup.add(post);
 
-// Decorative ring on the base
-const baseRing = new THREE.Mesh(
-  new THREE.TorusGeometry(1.06, 0.04, 10, 64),
-  baseAccentMat
-);
-baseRing.position.y = 0.22;
-baseRing.rotation.x = Math.PI / 2;
-kingWrapper.add(baseRing);
-
-/* ---------- Golden cross on top ---------- */
-const crossGroup = new THREE.Group();
-const crossVertical = new THREE.Mesh(
-  new THREE.BoxGeometry(0.14, 0.75, 0.14),
-  crossMat
-);
-crossVertical.position.y = 0.38;
-crossGroup.add(crossVertical);
-
-const crossHorizontal = new THREE.Mesh(
-  new THREE.BoxGeometry(0.5, 0.14, 0.14),
-  crossMat
-);
-crossHorizontal.position.y = 0.5;
-crossGroup.add(crossHorizontal);
-
-// Tiny orb at intersection for flair
-const crossOrb = new THREE.Mesh(
-  new THREE.SphereGeometry(0.1, 16, 12),
-  crossMat
-);
-crossOrb.position.y = 0.5;
-crossGroup.add(crossOrb);
-
-crossGroup.position.y = 2.95;
-kingWrapper.add(crossGroup);
+globeGroup.position.y = 3.25;
+kingWrapper.add(globeGroup);
 
 /* ---------- Soft glow halo behind the king ---------- */
 const kingHaloGeo = new THREE.SphereGeometry(2.6, 24, 16);
 const kingHaloMat = new THREE.MeshBasicMaterial({
   color: 0xc44cf7,
   transparent: true,
-  opacity: 0.08,
+  opacity: 0.06,
   blending: THREE.AdditiveBlending,
   depthWrite: false,
 });
@@ -236,17 +271,17 @@ const kingHalo = new THREE.Mesh(kingHaloGeo, kingHaloMat);
 kingHalo.position.y = 1.4;
 kingWrapper.add(kingHalo);
 
-/* ---------- Orbiting rings (royal court vibe) ---------- */
+/* ---------- Orbiting rings (subtle, atmospheric) ---------- */
 const rings = [];
 const ringConfigs = [
-  { radius: 2.4, tube: 0.02, color: 0xff6b9d, tilt: [Math.PI / 2.4, 0, 0.1], speed: 0.15 },
-  { radius: 2.8, tube: 0.015, color: 0x4facfe, tilt: [Math.PI / 2, 0.3, 0.5], speed: -0.11 },
-  { radius: 3.2, tube: 0.012, color: 0xfee140, tilt: [Math.PI / 2.2, 0.6, 1.1], speed: 0.08 },
+  { radius: 2.5, tube: 0.012, color: 0xff6b9d, tilt: [Math.PI / 2.4, 0, 0.1], speed: 0.12 },
+  { radius: 2.9, tube: 0.010, color: 0x4facfe, tilt: [Math.PI / 2, 0.3, 0.5], speed: -0.08 },
+  { radius: 3.3, tube: 0.008, color: 0xc44cf7, tilt: [Math.PI / 2.2, 0.6, 1.1], speed: 0.06 },
 ];
 ringConfigs.forEach((cfg) => {
   const rg = new THREE.TorusGeometry(cfg.radius, cfg.tube, 8, 160);
   const rm = new THREE.MeshBasicMaterial({
-    color: cfg.color, transparent: true, opacity: 0.6,
+    color: cfg.color, transparent: true, opacity: 0.4,
     blending: THREE.AdditiveBlending, depthWrite: false,
   });
   const ring = new THREE.Mesh(rg, rm);
@@ -263,7 +298,7 @@ logoGroup.rotation.x = 0;
 const orbA = null;
 const orbB = null;
 
-const kingRefs = { crossGroup, crossOrb, kingHaloMat, kingBody, rings };
+const kingRefs = { globeGroup, kingHaloMat, kingBody, rings };
 
 /* ===== Floating Satellites ===== */
 const satellites = [];
@@ -407,16 +442,14 @@ function animate() {
     part.glowMat.opacity = drawT * (0.22 + Math.sin(t * 2) * 0.1);
   });
 
-  // King body shimmer
-  kingMat.emissiveIntensity = 0.18 + Math.sin(t * 1.2) * 0.12;
+  // King body: subtle clearcoat breathing (no emissive glow — keep realistic)
+  kingMat.clearcoatRoughness = 0.04 + Math.sin(t * 0.6) * 0.02;
 
-  // Cross glows and slowly spins independently
-  kingRefs.crossGroup.rotation.y = t * 0.4;
-  crossMat.emissiveIntensity = 0.45 + Math.sin(t * 1.8) * 0.25;
-  kingRefs.crossOrb.scale.setScalar(1 + Math.sin(t * 2.5) * 0.15);
+  // Globe: slow Earth-like rotation
+  kingRefs.globeGroup.rotation.y = t * 0.35;
 
   // Halo pulse
-  kingRefs.kingHaloMat.opacity = 0.06 + Math.sin(t * 1.2) * 0.04;
+  kingRefs.kingHaloMat.opacity = 0.05 + Math.sin(t * 1.2) * 0.03;
 
   // Orbiting rings
   kingRefs.rings.forEach((ring) => {
