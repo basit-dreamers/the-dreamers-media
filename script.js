@@ -875,28 +875,52 @@ document.querySelectorAll('.scene').forEach(s => sceneIo.observe(s));
     else if (e.key === 'End')  { goTo(count - 1); }
   });
 
-  // ===== Touch — swipe = one panel step
+  // ===== Touch — swipe = one panel step (with scroll-within-panel support)
   let touchX = 0, touchY = 0, touchStartX = 0, touchStartY = 0, touching = false;
-  const SWIPE_THRESHOLD = 60;
+  let touchTargetIsScrollable = false;
+  const SWIPE_THRESHOLD = 50;
+  const TAP_THRESHOLD = 10;
+
+  function isInsideFormField(el) {
+    return el && el.closest && (
+      el.closest('input') ||
+      el.closest('textarea') ||
+      el.closest('select') ||
+      el.closest('button') ||
+      el.closest('a')
+    );
+  }
+
   window.addEventListener('touchstart', (e) => {
     const t = e.touches[0];
     touchX = touchStartX = t.clientX;
     touchY = touchStartY = t.clientY;
     touching = true;
+    // Let native behavior work for form fields & links
+    touchTargetIsScrollable = !!isInsideFormField(e.target);
   }, { passive: true });
+
   window.addEventListener('touchmove', (e) => {
     if (!touching) return;
     const t = e.touches[0];
     touchX = t.clientX;
     touchY = t.clientY;
-    e.preventDefault();
+    // Only prevent default when we're truly driving a panel swipe
+    if (!touchTargetIsScrollable) {
+      e.preventDefault();
+    }
   }, { passive: false });
-  window.addEventListener('touchend', () => {
+
+  window.addEventListener('touchend', (e) => {
     if (!touching) return;
     touching = false;
     const dx = touchStartX - touchX;
     const dy = touchStartY - touchY;
-    const delta = Math.abs(dy) > Math.abs(dx) ? dy : dx;
+    const absDx = Math.abs(dx), absDy = Math.abs(dy);
+    // Ignore taps
+    if (absDx < TAP_THRESHOLD && absDy < TAP_THRESHOLD) return;
+    if (touchTargetIsScrollable) return;
+    const delta = absDy > absDx ? dy : dx;
     if (Math.abs(delta) > SWIPE_THRESHOLD) {
       goTo(currentIndex() + (delta > 0 ? 1 : -1));
     }
@@ -924,10 +948,16 @@ document.querySelectorAll('.scene').forEach(s => sceneIo.observe(s));
   });
 
   // ===== Resize
-  window.addEventListener('resize', () => {
+  function handleResize() {
     const idx = Math.round(current / vw());
     target = idx * vw();
     current = target;
+    track.style.transform = `translate3d(${(-current).toFixed(1)}px, 0, 0)`;
+  }
+  window.addEventListener('resize', handleResize);
+  window.addEventListener('orientationchange', () => {
+    // iOS needs a tick to settle after orientation change
+    setTimeout(handleResize, 250);
   });
 
   // ===== Panel dot active state
