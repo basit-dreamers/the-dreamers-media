@@ -77,6 +77,73 @@ const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({
 }));
 scene.add(stars);
 
+/* ===== Shooting stars ===== */
+const shootingStars = [];
+const shootMat = new THREE.MeshBasicMaterial({
+  color: 0xffffff,
+  transparent: true,
+  opacity: 0.9,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
+});
+for (let i = 0; i < 4; i++) {
+  const geo = new THREE.CylinderGeometry(0.008, 0.002, 3.5, 6, 1, true);
+  geo.translate(0, -1.75, 0);          // move tail behind the origin
+  geo.rotateZ(Math.PI / 2);            // orient along +X
+  const s = new THREE.Mesh(geo, shootMat.clone());
+  s.material.opacity = 0;
+  s.userData = {
+    alive: false,
+    t: 0,
+    speed: 0,
+    dir: new THREE.Vector3(),
+  };
+  scene.add(s);
+  shootingStars.push(s);
+}
+function spawnShootingStar() {
+  const s = shootingStars.find(x => !x.userData.alive);
+  if (!s) return;
+  // Random start on a sphere of radius ~30, far from camera target
+  const r = 28;
+  const theta = Math.random() * Math.PI * 2;
+  const phi = 0.3 + Math.random() * 0.6;
+  s.position.set(r * Math.sin(phi) * Math.cos(theta), 6 + Math.random() * 10, r * Math.sin(phi) * Math.sin(theta) - 20);
+  const dir = new THREE.Vector3(-0.8 + Math.random() * 0.3, -0.5 - Math.random() * 0.3, 0.4 + Math.random() * 0.3).normalize();
+  s.userData.dir.copy(dir);
+  s.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir);
+  s.userData.alive = true;
+  s.userData.t = 0;
+  s.userData.speed = 22 + Math.random() * 18;
+  s.material.opacity = 0;
+}
+let nextShootAt = 2;
+
+/* ===== Dust particles (foreground ambient motion) ===== */
+const dustCount = 220;
+const dustGeo = new THREE.BufferGeometry();
+const dustPos = new Float32Array(dustCount * 3);
+const dustVel = new Float32Array(dustCount * 3);
+for (let i = 0; i < dustCount; i++) {
+  dustPos[i*3]   = (Math.random() - 0.5) * 20;
+  dustPos[i*3+1] = (Math.random() - 0.5) * 12;
+  dustPos[i*3+2] = (Math.random() - 0.5) * 10 - 2;
+  dustVel[i*3]   = (Math.random() - 0.5) * 0.01;
+  dustVel[i*3+1] = (Math.random() - 0.5) * 0.01;
+  dustVel[i*3+2] = (Math.random() - 0.5) * 0.005;
+}
+dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({
+  size: 0.05,
+  color: 0xffffff,
+  transparent: true,
+  opacity: 0.35,
+  sizeAttenuation: true,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+}));
+scene.add(dust);
+
 /* ===== Central Object: 3D Chess King Piece ===== */
 const coreGroup = new THREE.Group();
 scene.add(coreGroup);
@@ -483,6 +550,38 @@ function animate() {
   stars.rotation.y = t * 0.01;
   stars.rotation.x = t * 0.005;
 
+  // Dust: drift particles and wrap around a box volume
+  {
+    const arr = dust.geometry.attributes.position.array;
+    for (let i = 0; i < dustCount; i++) {
+      arr[i*3]   += dustVel[i*3];
+      arr[i*3+1] += dustVel[i*3+1];
+      arr[i*3+2] += dustVel[i*3+2];
+      if (arr[i*3]   >  10) arr[i*3]   = -10;
+      if (arr[i*3]   < -10) arr[i*3]   =  10;
+      if (arr[i*3+1] >   6) arr[i*3+1] =  -6;
+      if (arr[i*3+1] <  -6) arr[i*3+1] =   6;
+    }
+    dust.geometry.attributes.position.needsUpdate = true;
+  }
+
+  // Shooting stars: spawn periodically, move along direction, fade
+  if (t > nextShootAt) {
+    spawnShootingStar();
+    nextShootAt = t + 2.5 + Math.random() * 3;
+  }
+  shootingStars.forEach((s) => {
+    if (!s.userData.alive) return;
+    s.userData.t += dt;
+    const life = s.userData.t;
+    s.position.addScaledVector(s.userData.dir, s.userData.speed * dt);
+    // Fade in fast, then out
+    const fadeIn  = Math.min(1, life / 0.15);
+    const fadeOut = Math.max(0, 1 - Math.max(0, life - 0.6) / 0.8);
+    s.material.opacity = 0.9 * fadeIn * fadeOut;
+    if (life > 1.4) { s.userData.alive = false; s.material.opacity = 0; }
+  });
+
   // Lights orbit slowly
   keyLight.position.x = Math.cos(t * 0.3) * 10;
   keyLight.position.z = Math.sin(t * 0.3) * 10;
@@ -550,33 +649,169 @@ document.querySelectorAll('[data-hover]').forEach((el) => {
 });
 
 /* =========================================================
-   SCROLL REVEAL
+   SCROLL REVEAL — IntersectionObserver for [data-reveal]
    ========================================================= */
-const revealables = document.querySelectorAll(
-  '.service-card, .work-row, .process-step, .section-head, .lead, .big-text, .contact-form, .contact-alt'
-);
-revealables.forEach(el => el.classList.add('reveal'));
+(function setupReveal() {
+  const els = document.querySelectorAll('[data-reveal]');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-in');
+        io.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.15, rootMargin: '0px 0px -10% 0px' });
+  els.forEach((el) => io.observe(el));
 
-const io = new IntersectionObserver((entries) => {
-  entries.forEach((entry, i) => {
-    if (entry.isIntersecting) {
-      setTimeout(() => entry.target.classList.add('visible'), i * 60);
-      io.unobserve(entry.target);
-    }
+  // Assign --i to stagger children
+  document.querySelectorAll('[data-reveal-stagger]').forEach((parent) => {
+    [...parent.children].forEach((child, i) => {
+      child.style.setProperty('--i', i);
+    });
   });
-}, { threshold: 0.15 });
-revealables.forEach(el => io.observe(el));
+})();
 
-/* Mark scenes in-view for triggered animations */
+/* =========================================================
+   SPLIT TEXT — wrap each word in a mask for line-up reveals
+   ========================================================= */
+(function splitText() {
+  document.querySelectorAll('[data-split="words"]').forEach((el) => {
+    const walk = (node) => {
+      const children = [...node.childNodes];
+      children.forEach((child) => {
+        if (child.nodeType === Node.TEXT_NODE) {
+          const parts = child.textContent.split(/(\s+)/);
+          const frag = document.createDocumentFragment();
+          parts.forEach((part) => {
+            if (/^\s+$/.test(part)) {
+              frag.appendChild(document.createTextNode(part));
+            } else if (part.length) {
+              const w = document.createElement('span');
+              w.className = 'word';
+              const inner = document.createElement('span');
+              inner.className = 'inner';
+              inner.textContent = part;
+              w.appendChild(inner);
+              frag.appendChild(w);
+            }
+          });
+          node.replaceChild(frag, child);
+        } else if (child.nodeType === Node.ELEMENT_NODE && child.tagName !== 'BR') {
+          walk(child);
+        }
+      });
+    };
+    walk(el);
+    // Re-index .word elements for staggered delay
+    el.querySelectorAll('.word > .inner').forEach((inner, i) => {
+      inner.style.setProperty('--i', i);
+    });
+  });
+})();
+
+/* Scene in-view marker (kept for legacy CSS like .strike) */
 const sceneIo = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) entry.target.classList.add('in-view');
-  });
+  entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('in-view'); });
 }, { threshold: 0.4 });
 document.querySelectorAll('.scene').forEach(s => sceneIo.observe(s));
 
 /* =========================================================
-   SPLIT HERO TITLE INTO ANIMATED LINES
+   STAT COUNTER — animate numbers when stats-strip enters
+   ========================================================= */
+(function statCounters() {
+  const nums = document.querySelectorAll('.stat-num[data-count]');
+  const animateNum = (el) => {
+    const target = parseFloat(el.dataset.count);
+    const duration = 1600;
+    const start = performance.now();
+    const tick = (now) => {
+      const p = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      el.textContent = Math.floor(target * eased).toString();
+      if (p < 1) requestAnimationFrame(tick);
+      else el.textContent = target.toString();
+    };
+    requestAnimationFrame(tick);
+  };
+  const cio = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        animateNum(entry.target);
+        cio.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.5 });
+  nums.forEach((n) => cio.observe(n));
+})();
+
+/* =========================================================
+   MAGNETIC BUTTONS — slight pull toward the cursor
+   ========================================================= */
+(function magnetic() {
+  const strength = 0.35;
+  document.querySelectorAll('.btn, .btn-ghost').forEach((el) => {
+    el.addEventListener('mousemove', (e) => {
+      const r = el.getBoundingClientRect();
+      const mx = e.clientX - (r.left + r.width / 2);
+      const my = e.clientY - (r.top + r.height / 2);
+      el.style.setProperty('--tx', `${mx * strength}px`);
+      el.style.setProperty('--ty', `${my * strength}px`);
+    });
+    el.addEventListener('mouseleave', () => {
+      el.style.setProperty('--tx', '0px');
+      el.style.setProperty('--ty', '0px');
+    });
+  });
+})();
+
+/* =========================================================
+   3D TILT + spotlight on service cards
+   ========================================================= */
+(function cardTilt() {
+  const cards = document.querySelectorAll('.service-card');
+  cards.forEach((card) => {
+    card.addEventListener('mousemove', (e) => {
+      const r = card.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width;
+      const py = (e.clientY - r.top) / r.height;
+      const rx = (py - 0.5) * -10;  // degrees
+      const ry = (px - 0.5) * 10;
+      card.style.transform = `perspective(900px) rotateX(${rx}deg) rotateY(${ry}deg) translateY(-8px)`;
+      card.style.setProperty('--mx', `${px * 100}%`);
+      card.style.setProperty('--my', `${py * 100}%`);
+    });
+    card.addEventListener('mouseleave', () => {
+      card.style.transform = '';
+    });
+  });
+})();
+
+/* =========================================================
+   SMOOTH SCROLL — lerped wheel/scroll for buttery feel
+   ========================================================= */
+(function smoothScroll() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  let target = window.scrollY;
+  let current = window.scrollY;
+  const lerpFactor = 0.12;
+
+  window.addEventListener('scroll', () => {
+    target = window.scrollY;
+  }, { passive: true });
+
+  function loop() {
+    current += (target - current) * lerpFactor;
+    if (Math.abs(target - current) < 0.5) current = target;
+    // Apply subtle scroll-skew via CSS var for dramatic effect
+    const delta = target - current;
+    document.documentElement.style.setProperty('--scroll-skew', `${Math.max(-6, Math.min(6, delta * 0.05))}deg`);
+    requestAnimationFrame(loop);
+  }
+  loop();
+})();
+
+/* =========================================================
+   HERO TITLE LINE SPLIT (kept, works with existing CSS anim)
    ========================================================= */
 document.querySelectorAll('.hero-title .line').forEach((line) => {
   const html = line.innerHTML;

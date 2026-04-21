@@ -31,6 +31,16 @@
 <!-- WebGL Canvas -->
 <canvas id="webgl"></canvas>
 
+<!-- Aurora blobs (ambient color wash) -->
+<div class="aurora" aria-hidden="true">
+  <div class="aurora-blob b1"></div>
+  <div class="aurora-blob b2"></div>
+  <div class="aurora-blob b3"></div>
+</div>
+
+<!-- Film grain overlay -->
+<div class="grain" aria-hidden="true"></div>
+
 <!-- Custom Cursor -->
 <div class="cursor" id="cursor"></div>
 <div class="cursor-follower" id="cursorFollower"></div>
@@ -97,11 +107,29 @@
   </div>
 </section>
 
+<!-- ===== MARQUEE STRIP ===== -->
+<div class="marquee" aria-hidden="true">
+  <div class="marquee-track">
+    <span>Dream</span><span class="dot">✦</span>
+    <span>Build</span><span class="dot">✦</span>
+    <span>Launch</span><span class="dot">✦</span>
+    <span>Repeat</span><span class="dot">✦</span>
+    <span>Dream</span><span class="dot">✦</span>
+    <span>Build</span><span class="dot">✦</span>
+    <span>Launch</span><span class="dot">✦</span>
+    <span>Repeat</span><span class="dot">✦</span>
+    <span>Dream</span><span class="dot">✦</span>
+    <span>Build</span><span class="dot">✦</span>
+    <span>Launch</span><span class="dot">✦</span>
+    <span>Repeat</span><span class="dot">✦</span>
+  </div>
+</div>
+
 <!-- ===== SCENE 2: MANIFESTO ===== -->
 <section class="scene scene-manifesto" data-scene="1">
-  <div class="scene-content narrow">
+  <div class="scene-content narrow" data-reveal data-reveal-stagger>
     <span class="eyebrow">The Manifesto</span>
-    <h2 class="big-text">
+    <h2 class="big-text" data-split="words">
       Flat is <span class="strike">boring</span>.<br/>
       We build <em>worlds</em> — not webpages.
     </h2>
@@ -113,15 +141,25 @@
   </div>
 </section>
 
+<!-- ===== STATS STRIP ===== -->
+<section class="stats-strip" data-reveal>
+  <div class="stats-inner">
+    <div class="stat"><span class="stat-num" data-count="120">0</span><span class="stat-label">Brands launched</span></div>
+    <div class="stat"><span class="stat-num" data-count="87">0</span><span class="stat-suffix">M+</span><span class="stat-label">Impressions delivered</span></div>
+    <div class="stat"><span class="stat-num" data-count="42">0</span><span class="stat-label">Awards shelved</span></div>
+    <div class="stat"><span class="stat-num" data-count="7">0</span><span class="stat-label">Years dreaming</span></div>
+  </div>
+</section>
+
 <!-- ===== SCENE 3: SERVICES ===== -->
 <section id="services" class="scene scene-services" data-scene="2">
   <div class="scene-content">
-    <div class="section-head">
+    <div class="section-head" data-reveal data-reveal-stagger>
       <span class="eyebrow">Capabilities</span>
-      <h2>A full creative stack, <em>rendered in real time</em>.</h2>
+      <h2 data-split="words">A full creative stack, <em>rendered in real time</em>.</h2>
     </div>
 
-    <div class="services-grid">
+    <div class="services-grid" data-reveal data-reveal-stagger>
       <article class="service-card" data-hover>
         <div class="service-icon">◆</div>
         <h3>Brand Universe</h3>
@@ -165,11 +203,11 @@
 <!-- ===== SCENE 4: WORK ===== -->
 <section id="work" class="scene scene-work" data-scene="3">
   <div class="scene-content">
-    <div class="section-head">
+    <div class="section-head" data-reveal data-reveal-stagger>
       <span class="eyebrow">Selected Work</span>
-      <h2>Worlds we've <em>built</em>.</h2>
+      <h2 data-split="words">Worlds we've <em>built</em>.</h2>
     </div>
-    <div class="work-list">
+    <div class="work-list" data-reveal data-reveal-stagger>
       <a href="#" class="work-row" data-hover>
         <span class="work-index">01</span>
         <h3>Nova Athletics</h3>
@@ -207,11 +245,11 @@
 <!-- ===== SCENE 5: PROCESS ===== -->
 <section id="process" class="scene scene-process" data-scene="4">
   <div class="scene-content">
-    <div class="section-head">
+    <div class="section-head" data-reveal data-reveal-stagger>
       <span class="eyebrow">The Process</span>
-      <h2>From <em>spark</em> to <em>ship</em>.</h2>
+      <h2 data-split="words">From <em>spark</em> to <em>ship</em>.</h2>
     </div>
-    <div class="process-track">
+    <div class="process-track" data-reveal data-reveal-stagger>
       <div class="process-step" data-hover>
         <div class="step-num">01</div>
         <h3>Discover</h3>
@@ -238,9 +276,9 @@
 
 <!-- ===== SCENE 6: CTA / CONTACT ===== -->
 <section id="contact" class="scene scene-contact" data-scene="5">
-  <div class="scene-content narrow center">
+  <div class="scene-content narrow center" data-reveal data-reveal-stagger>
     <span class="eyebrow">Say Hello</span>
-    <h2 class="big-text">
+    <h2 class="big-text" data-split="words">
       Ready to build <em>your world?</em>
     </h2>
     <p class="lead">
