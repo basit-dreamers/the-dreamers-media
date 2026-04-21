@@ -1161,24 +1161,30 @@ a { color: inherit; text-decoration: none; }
     background: transparent;            /* let the 3D canvas show through */
     touch-action: pan-y;
     -webkit-overflow-scrolling: touch;
-    overflow-x: hidden;                 /* clip wide content — no neighbor bleed */
+    overflow-x: hidden;
     overflow-y: auto;
     isolation: isolate;
     transform-style: flat;
   }
   .scene > * { max-width: 100%; }
   .scene::after { display: none; }
-  /* Soft dark scrim behind content so text stays readable over the 3D layer */
-  .scene:not(.scene-hero) .scene-content {
-    position: relative;
-    background: radial-gradient(ellipse at center, rgba(5,5,10,0.72) 0%, rgba(5,5,10,0.55) 60%, rgba(5,5,10,0.35) 100%);
-    border-radius: 20px;
-    padding: 20px 16px;
+  .scene-content { max-height: none; padding-top: 4px; background: transparent !important; }
+
+  /* Readability over the 3D layer: subtle text shadow only, no heavy scrim. */
+  .scene h1, .scene h2, .scene h3, .scene p, .scene .lead, .scene .eyebrow,
+  .scene label, .scene .big-text, .scene a {
+    text-shadow: 0 2px 16px rgba(5, 5, 10, 0.85), 0 1px 4px rgba(5, 5, 10, 0.95);
+  }
+
+  /* Cards/rows keep their own glass look so they don't disappear into the canvas */
+  .service-card, .work-row, .process-step, .stat, .contact-form input, .contact-form textarea {
+    background: rgba(10, 10, 18, 0.55) !important;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
   }
+
   .scene-hero { background: transparent; }
-  .scene-hero .scene-content { align-self: center; padding-top: 0; background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .scene-hero .scene-content { align-self: center; padding-top: 0; }
 
   /* Nav */
   .nav-inner { padding: 14px 20px; }
